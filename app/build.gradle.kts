@@ -1,10 +1,9 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 android {
     namespace = "br.com.a01optimizer"
-    compileSdk = 35
+    compileSdk = 37
     defaultConfig {
         applicationId = "br.com.a01optimizer"
         minSdk = 30
