@@ -34,6 +34,10 @@ class MainActivity : Activity() {
     private lateinit var disableButton: Button
     private lateinit var restoreButton: Button
     private lateinit var reportButton: Button
+    private lateinit var markButton: Button
+    private lateinit var clearButton: Button
+    private lateinit var emergencyButton: Button
+    private val checkboxes = linkedMapOf<String, CheckBox>()
     private var systemPackages = emptySet<String>()
     private val chosen = linkedSetOf<String>()
     private var installed = emptySet<String>()
@@ -54,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         root.addView(label("A01 Optimizer", 27f, true))
-        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.2 — diagnóstico", 13f))
+        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.3 • A01", 13f))
         gap(root)
         status = label("Ainda não conectado", 16f, true)
         root.addView(status)
@@ -87,28 +91,33 @@ class MainActivity : Activity() {
         gap(root)
 
         root.addView(label("3. Inventário do sistema", 19f, true))
-        root.addView(label("Esta versão lê os pacotes pré-instalados, sem modificar nada. O relatório é copiado apenas quando você tocar no botão; ele não é enviado automaticamente.", 14f))
+        root.addView(label("A análise lê os pacotes instalados. O relatório só é copiado quando você solicitar; não é enviado automaticamente.", 14f))
         reportButton = action("Copiar diagnóstico completo") { copyDiagnostic() }
         root.addView(reportButton)
         gap(root)
 
-        root.addView(label("4. Aplicativos opcionais encontrados", 19f, true))
-        root.addView(label("Somente leitura nesta versão: os itens abaixo são os que a versão anterior conhecia. Nenhum aplicativo será desativado aqui.", 14f))
+        root.addView(label("4. Otimização reversível", 19f, true))
+        root.addView(label("Baseado nos pacotes do seu SM-A015M. As opções de menor risco são geralmente dispensáveis, mas podem remover funções que você utiliza. Nenhuma é marcada ou desativada automaticamente.", 14f))
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         list.addView(label("Conecte o ADB para identificar os aplicativos.", 14f))
         root.addView(list)
-        disableButton = action("Desativar selecionados") { confirmDisable() }
-        disableButton.visibility = View.GONE
+        markButton = action("Marcar sugestões de menor risco") { selectConservative() }
+        root.addView(markButton)
+        clearButton = action("Desmarcar tudo") { checkboxes.values.forEach { it.isChecked = false } }
+        root.addView(clearButton)
+        disableButton = action("Revisar e desativar selecionados") { confirmDisable() }
         root.addView(disableButton)
         gap(root)
 
-        root.addView(label("5. Restauração na versão anterior", 19f, true))
-        root.addView(label("Não desinstale o A01 Optimizer 0.1.1: a versão anterior guarda o histórico de desativações. O diagnóstico não faz alterações.", 14f))
+        root.addView(label("5. Restaurar e proteger funções", 19f, true))
+        root.addView(label("Restaure as alterações feitas por esta versão. Mantenha o A01 Optimizer 0.1.1 para restaurar o histórico daquela versão, se necessário.", 14f))
         restoreButton = action("Restaurar alterações") { confirmRestore() }
-        restoreButton.visibility = View.GONE
         root.addView(restoreButton)
+        root.addView(label("O seu relatório mostrou o Modo de emergência da Samsung desativado. Recomendamos reativá-lo.", 14f))
+        emergencyButton = action("Reativar Modo de emergência") { restoreEmergency() }
+        root.addView(emergencyButton)
         gap(root)
-        root.addView(label("Depois de copiar, cole o texto no ChatGPT para uma análise do seu modelo. Desligue a depuração sem fio quando terminar.", 13f))
+        root.addView(label("Depois de alterar qualquer pacote, teste chamadas, SMS, internet, Pix, biometria e seus bancos. Desligue a depuração sem fio ao terminar. Ganho de desempenho e compatibilidade bancária não são garantidos.", 13f))
         updateButtons()
     }
 
@@ -139,6 +148,9 @@ class MainActivity : Activity() {
     private fun updateButtons() {
         connectButton.isEnabled = !busy
         reportButton.isEnabled = !busy && connected && systemPackages.isNotEmpty()
+        markButton.isEnabled = !busy && connected && supported && checkboxes.isNotEmpty()
+        clearButton.isEnabled = !busy && checkboxes.isNotEmpty()
+        emergencyButton.isEnabled = !busy && connected && disabled.contains("com.sec.android.emergencylauncher")
         disableButton.isEnabled = !busy && connected && supported && chosen.isNotEmpty()
         restoreButton.isEnabled = !busy && connected && saved().isNotEmpty()
     }
@@ -188,7 +200,7 @@ class MainActivity : Activity() {
                 showCatalog()
                 if (supported) {
                     val n = SafeCatalog.entries.count { it.name in present }
-                    message("Conectado: " + model + ". " + system.size + " pacotes do sistema detectados; " + n + " do catálogo antigo.")
+                    message("Conectado: " + model + ". " + system.size + " pacotes do sistema, " + n + " opcionais no catálogo.")
                 } else {
                     message("Conectado: " + model + ". Desativação bloqueada fora do Galaxy A01.")
                 }
@@ -198,30 +210,72 @@ class MainActivity : Activity() {
 
     private fun showCatalog() {
         chosen.clear()
+        checkboxes.clear()
         list.removeAllViews()
         val options = SafeCatalog.entries.filter { it.name in installed }
         if (options.isEmpty()) {
-            list.addView(label("Nenhum item do catálogo encontrado. Nada para otimizar nesta versão.", 14f))
+            list.addView(label("Nenhum dos pacotes opcionais foi encontrado.", 14f))
         }
-        for (item in options) {
-            val isDisabled = item.name in disabled
-            val mark = if (isDisabled) " (já desativado)" else ""
-            val check = CheckBox(this).apply {
-                text = item.label + mark + "\n" + item.explanation
-                textSize = 15f
-                isEnabled = supported && !isDisabled
-                isChecked = false
-                setPadding(0, 8.dp(), 0, 8.dp())
-                setOnCheckedChangeListener { _, checked ->
-                    if (checked) chosen.add(item.name) else chosen.remove(item.name)
-                    updateButtons()
+        for (risk in listOf(Risk.LOWER, Risk.CONDITIONAL)) {
+            val group = options.filter { it.risk == risk }
+            if (group.isEmpty()) continue
+            val caption = if (risk == Risk.LOWER)
+                "MENOR RISCO — escolha somente o que não usa"
+            else "ATENÇÃO — desativa recursos específicos"
+            list.addView(label(caption + " (" + group.size + ")", 16f, true))
+            for (item in group) {
+                val wasDisabled = item.name in disabled
+                val checkbox = CheckBox(this).apply {
+                    text = item.label + (if (wasDisabled) " — já desativado" else "") +
+                        "\n" + item.explanation
+                    textSize = 15f
+                    isEnabled = supported && !busy && !wasDisabled
+                    isChecked = false
+                    setPadding(0, 8.dp(), 0, 8.dp())
+                    setOnCheckedChangeListener { _, selected ->
+                        if (selected) chosen.add(item.name) else chosen.remove(item.name)
+                        updateButtons()
+                    }
                 }
+                checkboxes[item.name] = checkbox
+                list.addView(checkbox)
             }
-            list.addView(check)
+            gap(list)
         }
         updateButtons()
     }
 
+    private fun selectConservative() {
+        for (entry in SafeCatalog.entries.filter { it.risk == Risk.LOWER }) {
+            val check = checkboxes[entry.name]
+            if (check != null && check.isEnabled && entry.name !in disabled) check.isChecked = true
+        }
+        message("Sugestões marcadas: " + chosen.size + ". Revise cada opção antes de confirmar.")
+    }
+
+    private fun restoreEmergency() {
+        if (!connected) return
+        if ("com.sec.android.emergencylauncher" !in disabled) {
+            message("O Modo de emergência já está ativo.")
+            return
+        }
+        AlertDialog.Builder(this).setTitle("Reativar Modo de emergência?")
+            .setMessage("O relatório mostrou a função de emergência da Samsung desativada. Vamos tentar reativar apenas com.sec.android.emergencylauncher. Não afetará outros pacotes.")
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Reativar") { _, _ ->
+                val p = try { port() } catch (ex: Exception) { message("Porta inválida"); return@setPositiveButton }
+                task("Reativando Modo de emergência...") {
+                    AdbCore.command(this, p, "pm enable --user 0 com.sec.android.emergencylauncher")
+                    val disabledNow = packages(AdbCore.command(this, p, "pm list packages -d"))
+                    runOnUiThread {
+                        disabled = disabledNow
+                        updateButtons()
+                        message(if ("com.sec.android.emergencylauncher" !in disabledNow)
+                            "Modo de emergência reativado." else "O serviço continua desativado; confira as configurações.")
+                    }
+                }
+            }.show()
+    }
 
     private fun copyDiagnostic() {
         if (!connected || systemPackages.isEmpty()) {
@@ -231,7 +285,7 @@ class MainActivity : Activity() {
         val active = systemPackages.subtract(disabled)
         val inactive = systemPackages.intersect(disabled)
         val report = buildString {
-            appendLine("A01 DIAGNOSTICO V0.2 - SOMENTE PACOTES DO SISTEMA")
+            appendLine("A01 OPTIMIZER V0.3 - RELATORIO DOS PACOTES DO SISTEMA")
             appendLine("Modelo: " + Build.MODEL)
             appendLine("Android: " + Build.VERSION.RELEASE)
             appendLine("Pacotes de sistema: " + systemPackages.size)
@@ -257,10 +311,12 @@ class MainActivity : Activity() {
         if (!supported || !connected || chosen.isEmpty()) return
         val selected = chosen.filter { SafeCatalog.allowed(it) && it in installed && it !in disabled }
         if (selected.isEmpty()) return
-        val names = SafeCatalog.entries.filter { it.name in selected }.joinToString("\n") { it.label }
+        val names = SafeCatalog.entries.filter { it.name in selected }.joinToString("\n") {
+            it.label + (if (it.risk == Risk.CONDITIONAL) " [RECURSO PODE FAZER FALTA]" else "")
+        }
         AlertDialog.Builder(this).setTitle("Confirmar desativação")
             .setMessage("Desativar os aplicativos abaixo?\n\n" + names +
-                "\n\nPode ser desfeito. Não há garantia de melhora de desempenho. Teste seus bancos depois.")
+                "\n\nPode ser desfeito nesta versão. Alguns recursos deixarão de funcionar. Ganho de velocidade não é garantido. Teste chamadas, Pix e todos os bancos depois.")
             .setNegativeButton("Cancelar", null)
             .setPositiveButton("Desativar") { _, _ -> disable(selected) }.show()
     }

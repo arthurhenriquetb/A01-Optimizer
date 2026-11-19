@@ -1,25 +1,31 @@
-# A01 Diagnóstico — v0.2 experimental
+# A01 Optimizer v0.3 — experimental
 
-Versão de diagnóstico para o Samsung Galaxy A01 SM-A015M com Android 12.
-Analisa os pacotes **do sistema** pelo ADB sem fio, sem Shizuku nem root, e copia um inventário para análise manual.
+Esta versão foi construída a partir do inventário de **297 pacotes do SM-A015M, Android 12** enviado pelo proprietário. É um app independente, que executa comandos ADB via Wi-Fi com pareamento de seis dígitos. **Sem root, sem Shizuku, sem computador.**
 
-**Não desativa nada.** Esta versão tem um `applicationId` diferente da versão 0.1.1, porque os APKs experimentais do GitHub usam certificados de depuração temporários diferentes e não conseguem atualizar uma instalação anterior. Ela pode ser instalada ao lado do A01 Optimizer 0.1.1.
+A versão 0.3 **não desativa nada automaticamente**. Mostra uma lista fechada de 35 pacotes opcionais presentes no inventário do aparelho; muitos têm efeitos pequenos ou nulos sobre RAM e desempenho. Explica efeitos e riscos, exige seleção e confirmação e oferece restauração do que esta própria versão desativou.
 
-**Não desinstale a versão 0.1.1 antes de restaurar o que ela modificou**, caso queira reverter alterações anteriores.
+## Antes de usar
 
-## Passos
+- Conecte-se ao Wi-Fi privado de confiança.
+- No app, toque em preparar notificação e abra Configurações → Opções do desenvolvedor → Depuração sem fio → Parear dispositivo com código.
+- Responda à notificação com **porta de pareamento** + espaço + **código de seis dígitos**.
+- Na tela inicial de Depuração sem fio, informe no app a **porta de conexão** (número após o sinal de dois-pontos).
+- Toque em **Conectar e analisar**.
+- Revise as caixas e, se quiser, use **Marcar sugestões de menor risco**. Leia cada descrição; não use a opção por impulso.
+- Toque em **Revisar e desativar selecionados**, confirme e teste os recursos do telefone.
+- Caso precise, toque em **Restaurar alterações** para reativar pacotes que a versão 0.3 registrou.
+- A opção **Reativar Modo de emergência** tenta recuperar `com.sec.android.emergencylauncher`, já desativado no relatório.
+- Desligue depuração sem fio ao terminar.
 
-1. Instale o APK A01 Diagnóstico.
-2. Com o aparelho na rede Wi-Fi, prepare uma nova notificação de pareamento.
-3. Abra Configurações → Opções do desenvolvedor → Depuração sem fio → Parear dispositivo com código de pareamento.
-4. Responda à notificação com a porta de pareamento, espaço e código de seis dígitos, por exemplo `37121 123456`.
-5. Volte a Depuração sem fio, copie apenas a **porta de conexão** exibida ao lado do endereço IP.
-6. No app, digite-a em Porta de conexão, toque em Conectar e analisar e então em Copiar diagnóstico completo.
-7. Cole o texto numa conversa para avaliar quais pacotes são desnecessários, sem alterar bancos, Google, autenticação ou sistema essencial.
-8. Desligue a depuração sem fio quando terminar.
+## Segurança e limitações
 
-O app não envia dados para servidores. O relatório apenas é copiado para a área de transferência após um toque explícito. A lista de pacotes de sistema não inclui aplicativos instalados por você de forma comum (terceiros).
+- Sem alterações no bootloader, root, Play Integrity, Google Play Services, Knox, autenticação, serviços de rede, chamadas ou bancos.
+- Desativação reversível com `pm disable-user --user 0`; nunca exclui dados de aplicativos.
+- Lista fechada validada contra inventário, sem campo para comandos ADB arbitrários.
+- Pode reduzir funcionalidades; não garante ganho de desempenho nem compatibilidade bancária.
+- **Nunca desinstale os apps das versões antigas antes de restaurar o histórico que guardam**, especialmente A01 Optimizer 0.1.1.
+- Cada versão é um pacote Android separado por conta das assinaturas debug geradas pelo GitHub Actions. Não atualiza as versões anteriores in-place.
+- Projeto experimental sem testes automatizados no SM-A015M. Faça backup dos dados importantes antes de testar.
 
-## Fonte da biblioteca
-
-[Kadb](https://github.com/flyfishxu/Kadb) (Apache-2.0). Este APK é experimental e deve ser testado no dispositivo alvo.
+## Código-fonte e compilação
+GitHub Actions gera um APK debug na aba Actions. Biblioteca [Kadb](https://github.com/flyfishxu/Kadb) sob licença Apache-2.0.
