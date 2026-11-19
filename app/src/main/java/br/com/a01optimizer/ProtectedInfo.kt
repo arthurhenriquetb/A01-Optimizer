@@ -13,7 +13,9 @@ object ProtectedInfo {
         "com.google.android.packageinstaller", "com.google.android.permissioncontroller",
         "com.sec.android.app.launcher", "com.samsung.android.honeyboard",
         "com.sec.imsservice", "com.sec.epdg", "com.sec.android.emergencylauncher",
-        "com.samsung.android.biometrics.app.setting", "com.samsung.android.kgclient"
+        "com.samsung.android.biometrics.app.setting", "com.samsung.android.kgclient",
+        "com.motorola.ccc.ota", "com.motorola.launcher3", "com.motorola.camera3",
+        "com.miui.home", "com.miui.securitycenter", "com.xiaomi.finddevice"
     )
 
     fun isCritical(packageName: String): Boolean = packageName in critical
@@ -67,6 +69,12 @@ object ProtectedInfo {
         packageName.startsWith("com.sec.ims") || packageName.startsWith("com.sec.phone") ||
             packageName.startsWith("com.sec.epdg") ->
             "Ligado à telefonia e à operadora; remover pode afetar chamadas e rede."
+        packageName.startsWith("com.motorola.") || packageName.startsWith("com.moto.") ||
+            packageName.startsWith("com.lenovo.") ->
+            "Componente Motorola/Lenovo. Sua função e dependências precisam ser avaliadas neste modelo."
+        packageName.startsWith("com.miui.") || packageName.startsWith("com.xiaomi.") ||
+            packageName.startsWith("com.mi.") ->
+            "Componente Xiaomi/MIUI/HyperOS. Sua função e dependências precisam ser avaliadas neste modelo."
         packageName.startsWith("com.google.android.") ->
             "Componente Google ainda não validado para remoção; pode ser usado por outros aplicativos."
         packageName.startsWith("com.samsung.") || packageName.startsWith("com.sec.") ->

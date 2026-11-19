@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
@@ -58,11 +60,15 @@ class DashboardActivity : Activity() {
     private var appList: ListView? = null
     private var statusLabel: TextView? = null
     private var guideList: ListView? = null
+    private var guideSelectionLabel: TextView? = null
+    private var reviewButton: Button? = null
     private var discovery: AdbDiscovery? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        lang = prefs.getString("language", "en") ?: "en"
+        lang = prefs.getString("language",
+            if (Locale.getDefault().language == "pt") "pt" else "en") ?: "en"
+        loadLocalApps()
         buildUi()
         if (savedInstanceState == null) window.decorView.post { askAutoConnect() }
     }
@@ -70,6 +76,26 @@ class DashboardActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (connected && sort == 1 && !busy) maybeLoadSizes()
+        if (!connected) loadLocalApps()
+    }
+
+    private fun loadLocalApps() {
+        try {
+            val items = LocalInventory.read(this)
+            if (connected) return
+            model = items.device
+            systemApps = items.system
+            userApps = items.installed
+            disabled = items.disabled
+            labels = items.names
+            selected.retainAll(items.system + items.installed)
+            updateList()
+            updateGuide()
+            updateActions()
+        } catch (e: Exception) {
+            statusText = tr("Could not read local apps", "Não foi possível ler os apps locais")
+            updateActions()
+        }
     }
 
     private fun tr(en: String, pt: String): String = if (lang == "pt") pt else en
@@ -98,16 +124,16 @@ class DashboardActivity : Activity() {
         appList = null
         uninstallButton = null
         guideList = null
+        guideSelectionLabel = null
+        reviewButton = null
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(250, 251, 253))
             setPadding(10.dp(), 6.dp(), 10.dp(), 8.dp())
         }
-        val title = label("A01 Optimizer", 22f, true)
+        val title = label("Android Optimizer", 22f, true)
         root.addView(title)
-        statusLabel = label(if (busy) statusText.ifBlank { tr("Working…", "Processando…") } else if (connected)
-            "${model.ifBlank { "Android" }} • ${userApps.size + systemApps.size} ${tr("apps", "apps")}"
-        else statusText.ifBlank { tr("Connect in Tools to load apps", "Conecte em Ferramentas para listar os apps") }, 12f)
+        statusLabel = label(deviceStatus(), 12f)
         root.addView(statusLabel)
 
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -219,6 +245,18 @@ class DashboardActivity : Activity() {
 
     private fun showGuide(content: LinearLayout) {
         content.addView(label(tr("Suggestions", "Sugestões"), 18f, true))
+        content.addView(label(tr("Select several suggestions without leaving this tab.",
+            "Marque várias sugestões sem sair desta tela."), 12f))
+        guideSelectionLabel = label("", 13f, true)
+        content.addView(guideSelectionLabel)
+        reviewButton = button(tr("Review selected apps", "Revisar apps selecionados")) {
+            tab = Tab.APPS
+            query = ""
+            category = AppGuide.ALL
+            riskFilter = 0
+            buildUi()
+        }
+        content.addView(reviewButton)
         val filters = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         filters.addView(picker(AppGuide.categoryNames(lang == "pt"), guideCategory) {
             guideCategory = it; updateGuide()
@@ -237,44 +275,51 @@ class DashboardActivity : Activity() {
 
     private fun updateGuide() {
         val list = guideList ?: return
-        val available = if (connected) systemApps + userApps else AppGuide.entries.keys + RiskSuggestions.notes.keys
+        val available = systemApps + userApps
         val suggestions = AppGuide.reviewedSuggestions(available).filter { id ->
-            AppGuide.matches(guideCategory, id, id !in userApps) &&
+            AppGuide.matches(guideCategory, id, id in systemApps) &&
                 (guideRisk == 0 || AppGuide.level(id) == guideRisk - 1)
         }
-        val display = suggestions.map { id ->
-            val level = AppGuide.level(id)
-            val title = AppGuide.name(id, lang == "pt", labels[id] ?: id)
-            val tag = AppGuide.levelName(level, lang == "pt").uppercase(Locale.ROOT)
-            val symbol = arrayOf("🟢", "🟡", "🔴")[level]
-            val keep = if (AppGuide.adviseKeep(id)) tr(" · KEEP", " · MANTER") else ""
-            "$symbol $tag$keep · $title\n${AppGuide.description(id, lang == "pt")}" 
-        }
-        val adapted = ArrayAdapter(this, android.R.layout.simple_list_item_1, display.ifEmpty {
-            listOf(tr("No reviewed suggestions here", "Sem sugestões revisadas nesta categoria"))
-        })
-        list.adapter = adapted
-        list.setOnItemClickListener { _, _, position, _ ->
-            if (suggestions.isEmpty()) return@setOnItemClickListener
-            val id = suggestions[position]
-            if (AppGuide.adviseKeep(id)) {
-                AlertDialog.Builder(this).setTitle(AppGuide.name(id, lang == "pt", labels[id] ?: id))
-                    .setMessage(AppGuide.description(id, lang == "pt") + "\n\n" + tr(
-                        "Not recommended for removal. It is still available in Apps.",
-                        "Não recomendado para remoção. Continua disponível em Apps."))
-                    .setPositiveButton("OK", null).show()
-            } else if (!connected) {
-                tab = Tab.TOOLS; buildUi()
-                toast(tr("Connect to select apps", "Conecte para selecionar apps"))
-            } else {
-                selected.add(id)
-                query = id
-                category = AppGuide.ALL
-                riskFilter = 0
-                tab = Tab.APPS
-                buildUi()
+        list.adapter = object : BaseAdapter() {
+            override fun getCount(): Int = if (suggestions.isEmpty()) 1 else suggestions.size
+            override fun getItem(position: Int): Any =
+                if (suggestions.isEmpty()) "" else suggestions[position]
+            override fun getItemId(position: Int): Long = position.toLong()
+            override fun isEnabled(position: Int): Boolean = suggestions.isNotEmpty()
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+                if (suggestions.isEmpty()) return label(tr("No suggestions for installed apps.",
+                    "Nenhuma sugestão para os apps encontrados."), 14f)
+                val id = suggestions[position]
+                val level = AppGuide.level(id)
+                val title = AppGuide.name(id, lang == "pt", labels[id] ?: id)
+                val flag = arrayOf("🟢", "🟡", "🔴")[level]
+                val keep = AppGuide.adviseKeep(id)
+                val check = (convertView as? CheckBox) ?: CheckBox(this@DashboardActivity).apply {
+                    textSize = 14f
+                    setTextColor(ink)
+                    setPadding(9.dp(), 8.dp(), 8.dp(), 8.dp())
+                    minHeight = 70.dp()
+                }
+                check.setOnCheckedChangeListener(null)
+                check.text = "$flag ${AppGuide.levelName(level, lang == "pt").uppercase(Locale.ROOT)}" +
+                    (if (keep) tr(" · KEEP", " · MANTER") else "") +
+                    " · $title\n${AppGuide.description(id, lang == "pt")}\n$id"
+                check.isChecked = id in selected
+                check.isEnabled = !keep
+                check.setOnCheckedChangeListener { _, checked ->
+                    if (checked) selected.add(id) else selected.remove(id)
+                    updateActions()
+                }
+                check.setOnLongClickListener {
+                    AlertDialog.Builder(this@DashboardActivity).setTitle(title)
+                        .setMessage("$id\n\n" + AppGuide.description(id, lang == "pt"))
+                        .setPositiveButton("OK", null).show()
+                    true
+                }
+                return check
             }
         }
+        updateActions()
     }
 
     private fun showTools(content: LinearLayout) {
@@ -284,15 +329,31 @@ class DashboardActivity : Activity() {
             setSingleLine(true)
             setText(prefs.getString("connection_port", ""))
         }
-        content.addView(label(tr("Wireless debugging", "Depuração sem fio"), 18f, true))
+        content.addView(label(tr("ADB connection", "Conexão ADB"), 18f, true))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            content.addView(label(tr(
+                "Android 10: installed apps can be viewed and selected without ADB. " +
+                    "Wireless pairing with a code requires Android 11+. " +
+                    "Removing factory apps requires initial computer/USB setup.",
+                "Android 10: você já pode consultar e selecionar apps sem ADB. " +
+                    "Pareamento sem fio por código exige Android 11+. " +
+                    "Para remover apps de fábrica é necessária configuração inicial com computador e cabo USB."
+            ), 13f))
+        } else {
+            content.addView(label(tr(
+                "Android 11+: enable Wireless debugging and pair this app once.",
+                "Android 11+: ative a depuração sem fio e pareie este app uma vez."
+            ), 12f))
+        }
         content.addView(button(tr("Connect automatically", "Conectar automaticamente")) {
             autoConnect()
         })
-        content.addView(button(tr("Pair", "Parear")) {
+        content.addView(button(if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R)
+            tr("Open developer options", "Abrir opções do desenvolvedor") else tr("Pair", "Parear")) {
             try {
-                PairingReceiver.prepare(this)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) PairingReceiver.prepare(this)
                 startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
-            } catch (e: Exception) { toast(e.message ?: tr("Could not pair", "Não foi possível parear")) }
+            } catch (e: Exception) { toast(e.message ?: tr("Could not open settings", "Não foi possível abrir ajustes")) }
         })
         val manual = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -337,7 +398,7 @@ class DashboardActivity : Activity() {
         })
         content.addView(label(tr("Required to sort by full app size.",
             "Necessário para ordenar pelo tamanho completo."), 12f))
-        content.addView(label("A01 Optimizer v0.7", 15f, true))
+        content.addView(label("Android Optimizer v0.9 · universal", 15f, true))
     }
 
     private fun setLanguage(code: String) {
@@ -347,6 +408,7 @@ class DashboardActivity : Activity() {
     }
 
     private fun askAutoConnect() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         AlertDialog.Builder(this)
             .setTitle(tr("Connect automatically?", "Conectar automaticamente?"))
             .setMessage(tr("Finds the ADB port and reconnects with your saved pairing.",
@@ -357,6 +419,18 @@ class DashboardActivity : Activity() {
     }
 
     private fun autoConnect() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            AlertDialog.Builder(this)
+                .setTitle(tr("Android 10 compatibility", "Compatibilidade com Android 10"))
+                .setMessage(tr(
+                    "This phone has no Android 11+ wireless pairing. The local app list already works. " +
+                        "To change factory apps, use ADB with a computer and USB cable first.",
+                    "Este Android não tem pareamento sem fio do Android 11+. " +
+                        "A listagem local já funciona. Para modificar apps de fábrica, configure ADB " +
+                        "primeiro usando um computador e cabo USB."))
+                .setPositiveButton("OK", null).show()
+            return
+        }
         if (busy) return
         busy = true
         statusText = tr("Looking for wireless ADB…", "Procurando ADB sem fio…")
@@ -397,14 +471,23 @@ class DashboardActivity : Activity() {
             }.show()
     }
 
+    private fun deviceStatus(): String = when {
+        busy -> statusText.ifBlank { tr("Working…", "Processando…") }
+        systemApps.isNotEmpty() || userApps.isNotEmpty() ->
+            "$model · ${systemApps.size + userApps.size} ${tr("apps", "apps")}" +
+                if (connected) tr(" · ADB connected", " · ADB conectado")
+                else tr(" · local scan (no ADB)", " · leitura local (sem ADB)")
+        else -> statusText.ifBlank { tr("No apps found", "Nenhum app encontrado") }
+    }
+
     private fun updateActions() {
         uninstallButton?.apply {
             text = tr("Uninstall", "Desinstalar") + " (${selected.size})"
-            isEnabled = !busy && connected && selected.isNotEmpty()
+            isEnabled = !busy && selected.isNotEmpty()
         }
-        statusLabel?.text = if (busy) statusText.ifBlank { tr("Working…", "Processando…") }
-            else if (connected) "$model · ${systemApps.size + userApps.size} ${tr("apps", "apps")}"
-            else statusText.ifBlank { tr("Connect in Tools to load apps", "Conecte em Ferramentas para listar os apps") }
+        guideSelectionLabel?.text = tr("Selected", "Selecionados") + ": ${selected.size}"
+        reviewButton?.isEnabled = selected.isNotEmpty()
+        statusLabel?.text = deviceStatus()
     }
 
     private fun updateList() {
@@ -544,7 +627,7 @@ class DashboardActivity : Activity() {
     }
 
     private fun refresh() {
-        if (!connected) { tab = Tab.TOOLS; buildUi(); return }
+        if (!connected) { loadLocalApps(); buildUi(); return }
         scan(port())
     }
 
@@ -567,8 +650,51 @@ class DashboardActivity : Activity() {
     }
 
     private fun confirmUninstall() {
-        val targets = selected.filter { it in systemApps || it in userApps }.filter(::isValidId)
-        if (targets.isEmpty() || busy) return
+        val selectedOnDevice = selected.filter { it in systemApps || it in userApps }.filter(::isValidId)
+        if (selectedOnDevice.isEmpty() || busy) return
+        // On a different manufacturer's firmware, unknown system packages must not
+        // be removed solely because the user can see their package names.
+        val blocked = selectedOnDevice.filter { id ->
+            id in systemApps && (ProtectedInfo.isCritical(id) ||
+                (id !in AppGuide.entries && id !in RiskSuggestions.notes))
+        }
+        val targets = selectedOnDevice - blocked.toSet()
+        if (targets.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle(tr("System apps protected", "Aplicativos de sistema protegidos"))
+                .setMessage(tr("The selected system packages have not been reviewed for removal " +
+                    "on this phone. No changes were made.",
+                    "Os pacotes de sistema selecionados não foram revisados para remoção " +
+                    "neste aparelho. Nenhuma alteração foi feita."))
+                .setPositiveButton("OK", null).show()
+            return
+        }
+        if (!connected) {
+            val first = targets.firstOrNull { it in userApps }
+            if (first == null) {
+                showSetupDialog(tr("ADB is required to remove factory apps. " +
+                    "You can keep the selection and connect later.",
+                    "ADB é necessário para remover apps de fábrica. " +
+                    "Você pode manter a seleção e conectar depois."))
+                return
+            }
+            AlertDialog.Builder(this)
+                .setTitle(tr("Uninstall with Android", "Desinstalar pelo Android"))
+                .setMessage(tr(
+                    "Without ADB, Android will ask permission to remove each regular app. " +
+                        "Starting with: ${labels[first] ?: first}. Other selections stay saved.",
+                    "Sem ADB, o Android solicitará confirmação para cada app comum. " +
+                        "Começando por: ${labels[first] ?: first}. As outras seleções continuam marcadas."))
+                .setNegativeButton(tr("Cancel", "Cancelar"), null)
+                .setPositiveButton(tr("Continue", "Continuar")) { _, _ ->
+                    try {
+                        startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$first")))
+                    } catch (e: Exception) {
+                        toast(e.message ?: tr("Unable to open Android uninstall", "Não foi possível abrir a desinstalação"))
+                    }
+                }.show()
+            return
+        }
         val systemCount = targets.count { it in systemApps }
         val preview = targets.take(7).joinToString("\n") { labels[it] ?: it }
         val more = if (targets.size > 7) "\n+${targets.size - 7}" else ""
@@ -576,8 +702,12 @@ class DashboardActivity : Activity() {
             tr("\n\nWarning: removing system components can break Android, banking apps and ADB. Recovery is not guaranteed.",
                 "\n\nAtenção: remover componentes do sistema pode quebrar o Android, bancos e ADB. A recuperação não é garantida.")
         else tr("\n\nInstalled apps may lose their data.", "\n\nApps instalados podem perder dados.")
+        val skipped = if (blocked.isNotEmpty()) tr(
+            "\n\n${blocked.size} unreviewed or critical system apps will be kept.",
+            "\n\n${blocked.size} apps de sistema não revisados ou críticos serão preservados."
+        ) else ""
         AlertDialog.Builder(this).setTitle(tr("Uninstall ${targets.size} apps?", "Desinstalar ${targets.size} apps?"))
-            .setMessage(preview + more + warning)
+            .setMessage(preview + more + warning + skipped)
             .setNegativeButton(tr("Cancel", "Cancelar"), null)
             .setPositiveButton(tr("Uninstall", "Desinstalar")) { _, _ -> uninstall(targets) }.show()
     }

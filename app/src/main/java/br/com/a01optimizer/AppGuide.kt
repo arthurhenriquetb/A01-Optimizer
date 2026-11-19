@@ -17,7 +17,7 @@ object AppGuide {
     const val INSTALLED = 11
 
     val entries: Map<String, OptionalPackage> =
-        (SafeCatalog.entries + FactoryExtras.entries + AdvancedCatalog.entries)
+        (SafeCatalog.entries + FactoryExtras.entries + AdvancedCatalog.entries + UniversalCatalog.entries)
             .associateBy { it.name }
 
     private val englishNames = mapOf(
@@ -128,7 +128,15 @@ object AppGuide {
         "com.samsung.android.video" to "Samsung Video Player",
         "com.hiya.star" to "Hiya Caller ID",
         "com.sec.android.app.soundalive" to "Samsung Audio Effects",
-        "com.google.android.syncadapters.calendar" to "Google Calendar Sync"
+        "com.google.android.syncadapters.calendar" to "Google Calendar Sync",
+        "com.motorola.help" to "Motorola Device Help",
+        "com.motorola.moto" to "Moto Features",
+        "com.motorola.fmplayer" to "Motorola FM Radio",
+        "com.motorola.timeweatherwidget" to "Motorola Time and Weather",
+        "com.miui.weather2" to "Xiaomi Weather",
+        "com.miui.player" to "Xiaomi Music",
+        "com.miui.videoplayer" to "Xiaomi Video",
+        "com.miui.bugreport" to "Xiaomi Bug Reports"
     )
 
     private val englishNotes = mapOf(
@@ -229,21 +237,24 @@ object AppGuide {
         "com.google.android.gms", "com.google.android.gsf", "com.google.android.webview",
         "com.google.android.permissioncontroller", "com.sec.android.app.launcher",
         "com.samsung.android.honeyboard", "com.sec.imsservice",
-        "com.samsung.android.biometrics.app.setting", "com.samsung.android.kgclient"
+        "com.samsung.android.biometrics.app.setting", "com.samsung.android.kgclient",
+        "com.motorola.ccc.ota", "com.motorola.launcher3", "com.motorola.camera3",
+        "com.miui.home", "com.miui.securitycenter", "com.xiaomi.finddevice"
     )
 
-    fun adviseKeep(id: String) = id in criticalGuide
+    fun adviseKeep(id: String) = id in criticalGuide || ProtectedInfo.isCritical(id)
 
     fun name(id: String, pt: Boolean, fallback: String): String =
-        if (pt) KnownNames.label(id) ?: entries[id]?.label ?: fallback
-        else englishNames[id] ?: fallback
+        if (fallback.isNotBlank() && fallback != id) fallback
+        else if (pt) KnownNames.label(id) ?: entries[id]?.label ?: fallback
+        else englishNames[id] ?: entries[id]?.label ?: fallback
 
     fun categoryNames(pt: Boolean) = if (pt) arrayOf(
-        "Todos", "Samsung", "Telefone e SMS", "Mapas e localização", "Google",
+        "Todos", "Fabricante", "Telefone e SMS", "Mapas e localização", "Google",
         "Wi-Fi e conexões", "Câmera e mídia", "Tela e aparência", "Segurança e bancos",
         "Ferramentas", "Outros", "Instalados"
     ) else arrayOf(
-        "All apps", "Samsung", "Phone & SMS", "Maps & location", "Google",
+        "All apps", "Manufacturer", "Phone & SMS", "Maps & location", "Google",
         "Wi-Fi & connections", "Camera & media", "Home & appearance", "Security & banking",
         "Tools & diagnostics", "Other", "Installed apps"
     )
@@ -281,13 +292,14 @@ object AppGuide {
 
     fun matches(group: Int, id: String, isSystem: Boolean): Boolean = when (group) {
         ALL -> true
-        SAMSUNG -> KnownNames.isSamsung(id)
+        SAMSUNG -> KnownNames.isManufacturer(id)
         GOOGLE -> id.startsWith("com.google.") || id.startsWith("com.android.") || id == "android"
         INSTALLED -> !isSystem
         else -> category(id) == group
     }
 
     fun level(id: String): Int = when {
+        adviseKeep(id) -> 2
         entries[id]?.risk == Risk.LOWER -> 0
         entries[id]?.risk == Risk.CONDITIONAL -> 1
         else -> 2

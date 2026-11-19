@@ -40,8 +40,8 @@ class PairingReceiver : BroadcastReceiver() {
                 context.getSharedPreferences("a01", Context.MODE_PRIVATE)
                     .edit().putBoolean("paired", true).apply()
                 result(context, translated(context, "Paired", "Pareado"),
-                    translated(context, "Return to A01 Optimizer and connect.",
-                        "Volte ao A01 Optimizer e conecte."))
+                    translated(context, "Return to Android Optimizer and connect.",
+                        "Volte ao Android Optimizer e conecte."))
             } catch (ex: Exception) {
                 result(context, translated(context, "Pairing failed", "Falha no pareamento"),
                     ex.message ?: translated(context, "Check port and code", "Confira porta e código"))
@@ -74,7 +74,7 @@ class PairingReceiver : BroadcastReceiver() {
                 .addRemoteInput(reply).build()
             manager(ctx).notify(PAIR_NOTIFICATION, Notification.Builder(ctx, CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
-                .setContentTitle(translated(ctx, "Pair A01 Optimizer", "Parear A01 Optimizer"))
+                .setContentTitle(translated(ctx, "Pair Android Optimizer", "Parear Android Optimizer"))
                 .setContentText(translated(ctx, "Reply with CODE (or PORT CODE if needed).",
                     "Responda com CÓDIGO (ou PORTA CÓDIGO)."))
                 .addAction(action)

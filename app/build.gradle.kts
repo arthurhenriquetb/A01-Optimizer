@@ -15,10 +15,10 @@ android {
     }
     defaultConfig {
         applicationId = "br.com.a01optimizer.v08"
-        minSdk = 30
+        minSdk = 29
         targetSdk = 32
-        versionCode = 9
-        versionName = "0.8.0-experimental"
+        versionCode = 10
+        versionName = "0.9.0-universal"
     }
     packaging { resources { excludes.add("META-INF/LICENSE.md") } }
     compileOptions {

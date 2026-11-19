@@ -1,43 +1,41 @@
-# A01 Optimizer v0.8 — experimental
+# Android Optimizer v0.9 — universal (experimental)
 
-Lightweight Android package manager for the Samsung Galaxy A01 (SM-A015M/DS, Android 12). Developed by **Arthur Henrique Tostes Batista Aranha**, 2026.
+Android package viewer and optional app-removal tool for **Motorola, Samsung, Xiaomi, Pixel and other Android brands**, developed by Arthur Henrique Tostes Batista Aranha, 2026.
 
-**Default language:** English. Select **Settings → Português** for Brazilian Portuguese.
+**Compatibility:** Android 10 (API 29) or newer. The app reads the phone's **actual installed packages using Android PackageManager**, without a hardcoded Galaxy A01 inventory and without needing ADB for viewing. Android may hide some internal packages from the app; ADB can retrieve a more complete list. Package names, app names and functions can vary by firmware, manufacturer and version.
 
-## Interface
+## What changed in v0.9
 
-- Fixed bottom tabs: **Apps · Guide · Connect · Settings**. No need to scroll hundreds of rows to reach core actions.
-- **Apps:** searchable list of system and installed apps, with functional category and risk filters, sorted by name, total size, or current RAM snapshot. The uninstall action stays visible below the list.
-- **Guide:** reviewed candidates by category and risk. Green means relatively optional, yellow may disable useful functions, and red means uncertain or dangerous. Some red entries say **KEEP** and are not recommended for removal; they remain accessible in Apps. Tap a reviewed candidate to find/select it; long-press an app in Apps to read its description.
-- **Connect:** automatic wireless ADB discovery, pairing, manual fallback, and restoration of factory apps removed by this version.
-- **Settings:** language and optional usage-access permission for app size measurements.
+- New local read-only inventory available immediately on Android 10+, including Motorola.
+- ADB commands still query the current device using `pm list packages`, never a preset A01 list.
+- The **Suggestions / Sugestões** tab has checkboxes. Selecting multiple suggestions keeps the user **on the same screen**. The selected count is shown, with a separate button to review the selection.
+- Device manufacturer grouping now recognizes Motorola/Lenovo, Xiaomi/MIUI/HyperOS, Samsung, Google/Android and other common brands.
+- Added **conditional, not device-validated** Motorola/Xiaomi candidates. Only installed packages appear; absent ones are never invented in the interface.
+- The Android 10 setup screen explains that built-in **Wireless debugging with pairing codes requires Android 11+**.
+- Normal (non-system) apps can be uninstalled without ADB, one at a time via the Android system's own confirmation screen.
+- Unknown or critical **system** packages are protected from the app's removal command by default. Green/yellow labels are guidance, not guarantees of safety.
 
-Available category filters: Samsung, Phone & SMS, Maps & Location, Google, Wi-Fi & Connections, Camera & Media, Home & Appearance, Security & Banking, Tools & Diagnostics, Other, Installed Apps, and All Apps. Samsung and Google filters cut across the functional categories.
+## Connection
 
-All package entries are visible and selectable from the start. No advanced-mode unlocks, hidden categories, command-line paths, or risk-specific permission gates. The app displays one final confirmation before uninstalling. It **does not uninstall anything automatically**.
+**Android 11 and newer:** enable Developer Options > Wireless debugging in Android Settings, pair this app once with the displayed six-digit code using the notification, then choose **Connect automatically**. Discovery uses the phone's current wireless ADB port. Android requires the initial system-side approval.
 
-## Automatic connection without a computer
+**Android 10:** local viewing, filtering, grouping and selection already work **without ADB**. Android 10 lacks the newer wireless pairing settings. To issue system-app removal commands, an external PC with USB ADB is needed for initial setup; the phone cannot grant itself ADB privileges. ADB over TCP/IP may be configured externally, but connectivity of this app with legacy TCP ADB is not yet verified.
 
-1. On startup, tap **Yes / Sim**. The app discovers the current ADB connection port using mDNS and reuses its saved pairing key.
-2. On first installation, if not paired yet, tap **Open settings**. Enable **Developer Options → Wireless debugging** and open **Pair device with pairing code**.
-3. Reply to the A01 notification with the six-digit **CODE / CÓDIGO**. The app tries to discover the pairing port. If that fails, enter `PORT CODE` / `PORTA CÓDIGO` instead.
-4. Return to **Connect → Connect automatically**. On later launches, pressing **Yes / Sim** is sufficient as long as wireless debugging remains enabled and this app stays trusted.
-5. If the router blocks service discovery, open **Connect → Manual connection** and enter the main wireless debugging *connection port* shown after the IP address, not the pairing port.
+A smartphone app cannot autonomously activate USB/wireless debugging or approve its initial ADB authorization, even if the user gives ordinary application permissions.
 
-**Android limitation:** an ordinary app cannot enable USB/wireless debugging or authorize its first ADB trust request itself. Android settings must be used once. No root, Shizuku or Accessibility Service is required for automatic reconnects.
+## Removing apps and safety
 
-System apps are uninstalled **for Android user 0**, via `pm uninstall -k --user 0`. The original system partition is not erased. Previously removed factory apps may be restored via **Connect → Restore removed system apps** if ADB still works. Regular installed apps use `pm uninstall --user 0`, and their data may be lost. A restoration log is kept only for factory-app changes made by v0.8.
+1. Review the name, package ID, description and risk before selecting.
+2. For a **normal downloaded app without ADB**, the Android system confirms each removal. This app cannot silently uninstall it.
+3. For reviewed **factory system apps with ADB**, the app uses `pm uninstall -k --user 0`; it does not wipe the system partition.
+4. Unknown or critical system packages are not eligible for this app's removal command. A recovery history is saved only for factory packages removed through the ADB functionality.
 
-Size sorting uses Android `StorageStatsManager`; usage access must be granted manually under Android settings. RAM sorting uses a momentary PSS snapshot from `dumpsys meminfo`. Missing RAM data does **not** mean zero RAM consumption. Neither measurement predicts actual space/RAM savings from an uninstall.
+**Warnings:** Some preinstalled apps are dependencies for phone calls, security, banking, Pix, notifications, firmware updates, accessibility, camera, and device boot. Do not remove packages just because the application offers a checkbox. Manufacturer and firmware dependencies are not comprehensively validated. Back up data and test critical functions after changes. Recovery is not always possible.
 
-## Safety
+The optional size sort uses Android usage access; memory measurements require ADB and represent a momentary RAM snapshot, not guaranteed savings.
 
-**Removing core Android, Samsung, Play Services, WebView, telephony, security or authentication components may stop the phone from booting, break mobile calls/PIX/banking apps, or permanently prevent ADB restoration.** Green/yellow/red are guidance, not verified safety guarantees for every firmware or use case. Back up your data first and remove only apps whose function you understand.
+## Updates and build
 
-No bank compatibility is guaranteed, including Nubank, Banco do Brasil, PicPay, PagBank, Inter and Banestes. Test these, biometrics, calls, messages and Wi-Fi after any change. Disable wireless debugging after use.
+Package ID remains `br.com.a01optimizer.v08` to permit upgrading **v0.8 to v0.9** while preserving its locally saved pairing and removal history, provided the APK uses the same signing key. The original A01 app versions up through v0.7 used a different package ID. The GitHub Actions workflow reuses its cached v0.8 debug key; GitHub Actions cache retention is not guaranteed indefinitely.
 
-Because v0.7 used an ephemeral debug signing key, v0.8 has a separate application identifier (`br.com.a01optimizer.v08`) and requires a new one-time pairing. Starting with v0.8, GitHub Actions caches its debug signing key to support future in-place updates, although that cache is not guaranteed permanent. Keep previous versions until their restoration histories are no longer needed.
-
-## Build
-
-Kotlin / Android, with [Kadb](https://github.com/flyfishxu/Kadb) (Apache 2.0). GitHub Actions builds the experimental APK under **Actions → Build APK → Artifacts**.
+Source: Kotlin / Android, plus Kadb. APK build: **Actions > Build A01 Optimizer APK > latest successful run > Artifacts**.

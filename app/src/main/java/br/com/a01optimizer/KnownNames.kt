@@ -70,8 +70,14 @@ object KnownNames {
             packageName.startsWith("com.osp.") || packageName.startsWith("com.dti.samsung") ||
             packageName.startsWith("com.wssyncmldm") || packageName.startsWith("com.wsomacp")
 
+    fun isManufacturer(packageName: String): Boolean = isSamsung(packageName) ||
+        listOf("com.motorola.", "com.moto.", "com.lenovo.", "com.miui.",
+            "com.xiaomi.", "com.mi.", "com.oppo.", "com.coloros.", "com.heytap.",
+            "com.realme.", "com.oneplus.", "com.vivo.", "com.iqoo.",
+            "com.huawei.", "com.hihonor.").any(packageName::startsWith)
+
     fun group(packageName: String): String = when {
-        isSamsung(packageName) -> "SAMSUNG"
+        isManufacturer(packageName) -> "FABRICANTE"
         packageName == "android" || packageName.startsWith("android.") ||
             packageName.startsWith("com.android.") || packageName.startsWith("com.google.") ->
             "ANDROID / GOOGLE"

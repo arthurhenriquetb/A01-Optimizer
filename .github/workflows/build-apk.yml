@@ -42,6 +42,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: A01-Optimizer-v08-APK-experimental
+          name: Android-Optimizer-v09-universal-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
