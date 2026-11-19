@@ -1,45 +1,41 @@
-# A01 Optimizer v0.6 — experimental
+# A01 Optimizer v0.7 — experimental
 
-Aplicativo para o Galaxy A01 SM-A015M/DS, Android 12. Usa ADB sem fio após o pareamento manual; **não precisa de root, Shizuku ou computador**.
+Lightweight Android package manager for the Samsung Galaxy A01 (SM-A015M/DS, Android 12). Developed by **Arthur Henrique Tostes Batista Aranha**, 2026.
 
-## Novidades
+**Default language:** English. Select **Settings → Português** for Brazilian Portuguese.
 
-- **Tela inicial é o gerenciador completo de aplicativos.** O usuário pode parear e informar a porta ADB na própria tela.
-- **TODOS os pacotes de sistema instalados** são mostrados, sem esconder os vermelhos. Inclui o pacote base `android` e os pacotes de sobreposição de interface.
-- **Subcategoria Samsung** em separado, seguida de Android/Google e Outros/Operadora.
-- **Nomes conhecidos** apresentados em português, sempre com o identificador real abaixo. Pacotes não reconhecidos usam o nome obtido do Android ou o próprio identificador.
-- **Ordenar por nome, tamanho ou RAM atual**, em cada grupo. Tamanho corresponde ao aplicativo + dados disponíveis via `StorageStatsManager`; é necessário conceder manualmente **Acesso a dados de uso** nas Configurações e tocar em **Calcular tamanhos**. Não confundir tamanho informado com espaço liberado pela remoção para usuário 0.
-- **RAM** usa uma leitura momentânea do PSS dos processos ativos via `dumpsys meminfo`. Um traço indica ausência de medição, não consumo zero. Tocar em **Atualizar RAM agora** para nova leitura.
-- **Verde:** opcionais selecionáveis. **Amarelo:** requer ativar o modo avançado. **Vermelho:** remoção manual de alto risco, após desbloquear o modo especializado e digitar o identificador completo de UM pacote por vez. Sem seleção automática.
-- **Componentes absolutamente críticos** (Android base, SystemUI, ADB, Play Services, WebView, telefonia, biometria e outros) continuam visíveis, mas bloqueados. O objetivo é preservar a possibilidade de recuperar e usar o telefone, especialmente bancos.
-- **Sugestões não garantidas** de candidatos vermelhos aparecem com a etiqueta **POSSÍVEL CANDIDATO**, quando há uma hipótese plausível de dispensabilidade caso o recurso não seja usado.
-- Rodapé: **Desenvolvido por Arthur Henrique, em 2026**.
-- A tela antiga de diagnóstico, desativação reversível e modo de emergência continua disponível pelo botão **Abrir diagnóstico e desativação reversível**.
+## Interface
 
-## Como usar
+- Fixed bottom tabs: **Apps · Guide · Connect · Settings**. No need to scroll hundreds of rows to reach core actions.
+- **Apps:** searchable list of system and installed apps, with functional category and risk filters, sorted by name, total size, or current RAM snapshot. The uninstall action stays visible below the list.
+- **Guide:** reviewed candidates by category and risk. Green means relatively optional, yellow may disable useful functions, and red means uncertain or dangerous. Some red entries say **KEEP** and are not recommended for removal; they remain accessible in Apps. Tap a reviewed candidate to find/select it; long-press an app in Apps to read its description.
+- **Connect:** wireless ADB pairing, connection, and restoration of factory apps removed by this version.
+- **Settings:** language and optional usage-access permission for app size measurements.
 
-1. Abra o A01 Optimizer 0.6 e conecte o telefone a um Wi-Fi privado.
-2. Na tela inicial, toque em **Preparar notificação de pareamento**, depois em **Abrir Opções do desenvolvedor**.
-3. Nas configurações do Android, abra **Depuração sem fio → Parear dispositivo com código** e responda à notificação com **PORTA CÓDIGO**, separados por espaço.
-4. Na página principal de depuração sem fio, copie somente a **porta de conexão** depois do IP, diferente da porta de pareamento. Informe no campo do app.
-5. Toque em **Atualizar lista de aplicativos**. O sistema vai listar aplicativos comuns, aplicativos de fábrica, nomes conhecidos, suas seções Samsung/Google/Outros e a memória RAM atual disponível.
-6. Use a pesquisa ou o seletor **Ordenar por** (nome, tamanho ou RAM).
-7. Para ver tamanhos completos: toque **Permitir acesso aos tamanhos**, permita **A01 Optimizer 0.6** em Acesso a dados de uso e volte. Depois toque **Calcular tamanhos**. Essa etapa pode demorar.
-8. Para remover amarelos, ative modo avançado. Para vermelhos não críticos, leia o alerta e desbloqueie a remoção de alto risco. Pacotes vermelhos exigem confirmação exata do nome e só podem ser removidos individualmente.
-9. Os pacotes de fábrica são removidos **somente para o usuário 0**, com `pm uninstall -k --user 0` e registro para restauração via `cmd package install-existing --user 0`. Isso só funcionará se Android e ADB permanecerem acessíveis.
-10. Apps comuns removidos com `pm uninstall --user 0` podem ter os dados apagados; não há restauração deles no app. Apps bancários conhecidos e a própria família A01 Optimizer continuam protegidos na seção de apps comuns.
-11. Teste bancos (Nubank, Banco do Brasil, PicPay, PagBank, Inter, Banestes), Wi-Fi, chamadas, SMS, Pix e biometria depois das mudanças. Desative a depuração sem fio ao terminar.
+Available category filters: Samsung, Phone & SMS, Maps & Location, Google, Wi-Fi & Connections, Camera & Media, Home & Appearance, Security & Banking, Tools & Diagnostics, Other, Installed Apps, and All Apps. Samsung and Google filters cut across the functional categories.
 
-## Limites e riscos
+All package entries are visible and selectable from the start. No advanced-mode unlocks, hidden categories, command-line paths, or risk-specific permission gates. The app displays one final confirmation before uninstalling. It **does not uninstall anything automatically**.
 
-- **NENHUM pacote vermelho pode ser considerado seguro só por aparecer na lista.** O catálogo de sugestões é hipotético e deve ser avaliado caso a caso.
-- Desinstalar um pacote fundamental pode interromper a inicialização do Android ou o próprio ADB. Se isso acontecer, a restauração via app deixa de ser possível, podendo exigir recuperação por firmware oficial.
-- Sem root não é possível apagar a partição original de sistema. `pm uninstall -k --user 0` apenas remove o app do usuário atual; os ganhos reais de armazenamento e RAM variam.
-- O status **verde/amarelo/vermelho não substitui testes** no SM-A015M. Nenhuma compatibilidade bancária ou melhoria de velocidade está garantida.
-- Como a build debug do GitHub Actions muda de assinatura, a 0.6 usa um novo identificador. **Mantenha as versões antigas** até restaurar os históricos de alterações feitos nelas. O pareamento deve ser refeito.
-- Faça backup antes de remover qualquer app. Não há remoção automática, nem campo para comandos ADB arbitrários.
-- Toda análise de memória e armazenamento é local; o inventário não é enviado para servidores.
+## Connect without a computer
 
-## Compilação
+1. Connect the Galaxy A01 to a private Wi-Fi network and enable **Developer Options → Wireless debugging**.
+2. Open **Connect → Pair** in the app and choose **Pair device with pairing code** in Android settings.
+3. Reply to the A01 notification with `PORT CODE` (two values separated by one space). In Portuguese, the prompt reads `PORTA CÓDIGO`. Use the temporary pairing port on the pairing dialog.
+4. Return to the wireless debugging main screen. In the app, enter the **connection port** shown after the device IP address, **not** the pairing port.
+5. Tap **Connect**. Apps and memory information load from the phone over ADB. Use **Refresh** to update the list.
 
-Projeto Kotlin/Android com biblioteca [Kadb](https://github.com/flyfishxu/Kadb) (Apache-2.0). GitHub Actions gera o APK experimental.
+System apps are uninstalled **for Android user 0**, via `pm uninstall -k --user 0`. The original system partition is not erased. Previously removed factory apps may be restored via **Connect → Restore removed system apps** if ADB still works. Regular installed apps use `pm uninstall --user 0`, and their data may be lost. A restoration log is kept only for factory-app changes made by v0.7.
+
+Size sorting uses Android `StorageStatsManager`; usage access must be granted manually under Android settings. RAM sorting uses a momentary PSS snapshot from `dumpsys meminfo`. Missing RAM data does **not** mean zero RAM consumption. Neither measurement predicts actual space/RAM savings from an uninstall.
+
+## Safety
+
+**Removing core Android, Samsung, Play Services, WebView, telephony, security or authentication components may stop the phone from booting, break mobile calls/PIX/banking apps, or permanently prevent ADB restoration.** Green/yellow/red are guidance, not verified safety guarantees for every firmware or use case. Back up your data first and remove only apps whose function you understand.
+
+No bank compatibility is guaranteed, including Nubank, Banco do Brasil, PicPay, PagBank, Inter and Banestes. Test these, biometrics, calls, messages and Wi-Fi after any change. Disable wireless debugging after use.
+
+As GitHub Actions produces a differently signed debug APK on different runs, v0.7 uses an independent application identifier (`br.com.a01optimizer.v07`). Keep previous versions installed until their own restoration histories are no longer needed.
+
+## Build
+
+Kotlin / Android, with [Kadb](https://github.com/flyfishxu/Kadb) (Apache 2.0). GitHub Actions builds the experimental APK under **Actions → Build APK → Artifacts**.

@@ -1,4 +1,4 @@
-name: Compilar APK A01 Optimizer
+name: Build A01 Optimizer APK
 on:
   workflow_dispatch:
   push:
@@ -9,28 +9,28 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Baixar o projeto
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Instalar Java 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Instalar Android SDK
+      - name: Install Android SDK
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0"
-      - name: Preparar Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.4.1'
-      - name: Gerar APK experimental
+      - name: Build experimental APK
         run: gradle --no-daemon :app:assembleDebug
-      - name: Disponibilizar o APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: A01-Optimizer-v06-APK-experimental
+          name: A01-Optimizer-v07-APK-experimental
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
