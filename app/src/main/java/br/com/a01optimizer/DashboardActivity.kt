@@ -58,11 +58,13 @@ class DashboardActivity : Activity() {
     private var appList: ListView? = null
     private var statusLabel: TextView? = null
     private var guideList: ListView? = null
+    private var discovery: AdbDiscovery? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lang = prefs.getString("language", "en") ?: "en"
         buildUi()
+        if (savedInstanceState == null) window.decorView.post { askAutoConnect() }
     }
 
     override fun onResume() {
@@ -103,7 +105,7 @@ class DashboardActivity : Activity() {
         }
         val title = label("A01 Optimizer", 22f, true)
         root.addView(title)
-        statusLabel = label(if (busy) tr("Working…", "Processando…") else if (connected)
+        statusLabel = label(if (busy) statusText.ifBlank { tr("Working…", "Processando…") } else if (connected)
             "${model.ifBlank { "Android" }} • ${userApps.size + systemApps.size} ${tr("apps", "apps")}"
         else statusText.ifBlank { tr("Connect in Tools to load apps", "Conecte em Ferramentas para listar os apps") }, 12f)
         root.addView(statusLabel)
@@ -283,14 +285,24 @@ class DashboardActivity : Activity() {
             setText(prefs.getString("connection_port", ""))
         }
         content.addView(label(tr("Wireless debugging", "Depuração sem fio"), 18f, true))
+        content.addView(button(tr("Connect automatically", "Conectar automaticamente")) {
+            autoConnect()
+        })
         content.addView(button(tr("Pair", "Parear")) {
             try {
                 PairingReceiver.prepare(this)
                 startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
             } catch (e: Exception) { toast(e.message ?: tr("Could not pair", "Não foi possível parear")) }
         })
-        content.addView(port)
-        content.addView(button(tr("Connect", "Conectar")) {
+        val manual = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        content.addView(button(tr("Manual connection", "Conexão manual")) {
+            manual.visibility = if (manual.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        })
+        manual.addView(port)
+        manual.addView(button(tr("Connect with port", "Conectar com porta")) {
             val p = port.text.toString().trim().toIntOrNull()
             if (p == null || p !in 1..65535) {
                 toast(tr("Enter the connection port", "Informe a porta de conexão")); return@button
@@ -298,8 +310,9 @@ class DashboardActivity : Activity() {
             prefs.edit().putString("connection_port", p.toString()).apply()
             scan(p)
         })
-        content.addView(label(tr("Use the connection port, not the pairing port.",
+        manual.addView(label(tr("Use the connection port, not the pairing port.",
             "Use a porta de conexão, não a de pareamento."), 12f))
+        content.addView(manual)
         content.addView(label(tr("Recovery", "Restauração"), 18f, true))
         content.addView(button(tr("Restore removed system apps", "Restaurar apps de fábrica")) {
             confirmRestore()
@@ -333,12 +346,63 @@ class DashboardActivity : Activity() {
         buildUi()
     }
 
+    private fun askAutoConnect() {
+        AlertDialog.Builder(this)
+            .setTitle(tr("Connect automatically?", "Conectar automaticamente?"))
+            .setMessage(tr("Finds the ADB port and reconnects with your saved pairing.",
+                "Encontra a porta ADB e reconecta com o pareamento salvo."))
+            .setNegativeButton(tr("Not now", "Agora não"), null)
+            .setPositiveButton(tr("Yes", "Sim")) { _, _ -> autoConnect() }
+            .show()
+    }
+
+    private fun autoConnect() {
+        if (busy) return
+        busy = true
+        statusText = tr("Looking for wireless ADB…", "Procurando ADB sem fio…")
+        updateActions()
+        val finder = AdbDiscovery(this)
+        discovery = finder
+        finder.discover { found ->
+            if (isFinishing || isDestroyed) return@discover
+            discovery = null
+            busy = false
+            updateActions()
+            if (found == null) {
+                val saved = prefs.getString("connection_port", "")?.toIntOrNull()
+                if (saved != null && saved in 1..65535) {
+                    scan(saved, automatic = true)
+                } else {
+                    showSetupDialog(tr(
+                        "Turn on Wireless debugging in Developer options. Pair once if needed.",
+                        "Ative Depuração sem fio nas Opções do desenvolvedor. Pareie uma vez, se necessário."))
+                }
+            } else {
+                prefs.edit().putString("connection_port", found.toString()).apply()
+                scan(found, automatic = true)
+            }
+        }
+    }
+
+    private fun showSetupDialog(message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(tr("Wireless debugging", "Depuração sem fio"))
+            .setMessage(message)
+            .setNegativeButton(tr("Later", "Depois"), null)
+            .setPositiveButton(tr("Open settings", "Abrir configurações")) { _, _ ->
+                try {
+                    PairingReceiver.prepare(this)
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+                } catch (e: Exception) { toast(e.message ?: tr("Settings unavailable", "Configurações indisponíveis")) }
+            }.show()
+    }
+
     private fun updateActions() {
         uninstallButton?.apply {
             text = tr("Uninstall", "Desinstalar") + " (${selected.size})"
             isEnabled = !busy && connected && selected.isNotEmpty()
         }
-        statusLabel?.text = if (busy) tr("Working…", "Processando…")
+        statusLabel?.text = if (busy) statusText.ifBlank { tr("Working…", "Processando…") }
             else if (connected) "$model · ${systemApps.size + userApps.size} ${tr("apps", "apps")}"
             else statusText.ifBlank { tr("Connect in Tools to load apps", "Conecte em Ferramentas para listar os apps") }
     }
@@ -416,7 +480,7 @@ class DashboardActivity : Activity() {
     private fun port(): Int = prefs.getString("connection_port", "")?.toIntOrNull()
         ?.takeIf { it in 1..65535 } ?: error(tr("Connect in Tools first", "Conecte em Ferramentas primeiro"))
 
-    private fun task(message: String, work: (Int) -> Unit) {
+    private fun task(message: String, automatic: Boolean = false, work: (Int) -> Unit) {
         if (busy) return
         val p = try { port() } catch (e: Exception) { toast(e.message ?: message); return }
         busy = true
@@ -426,9 +490,15 @@ class DashboardActivity : Activity() {
             try { work(p) }
             catch (e: Exception) {
                 runOnUiThread {
-                    AlertDialog.Builder(this).setTitle(tr("Operation failed", "Operação não concluída"))
-                        .setMessage((e.message ?: "ADB disconnected").take(400))
-                        .setPositiveButton("OK", null).show()
+                    if (automatic) {
+                        connected = false
+                        showSetupDialog(tr("Could not reconnect. Turn on Wireless debugging and pair this app once if needed.",
+                            "Não foi possível reconectar. Ative a depuração sem fio e pareie este app se necessário."))
+                    } else {
+                        AlertDialog.Builder(this).setTitle(tr("Operation failed", "Operação não concluída"))
+                            .setMessage((e.message ?: "ADB disconnected").take(400))
+                            .setPositiveButton("OK", null).show()
+                    }
                 }
             } finally {
                 runOnUiThread {
@@ -440,9 +510,9 @@ class DashboardActivity : Activity() {
         }
     }
 
-    private fun scan(p: Int) {
+    private fun scan(p: Int, automatic: Boolean = false) {
         prefs.edit().putString("connection_port", p.toString()).apply()
-        task(tr("Connecting…", "Conectando…")) { connection ->
+        task(tr("Connecting…", "Conectando…"), automatic) { connection ->
             val currentModel = AdbCore.command(this, connection, "getprop ro.product.model").trim()
             val systems = parsePackages(AdbCore.command(this, connection, "pm list packages -s --user 0"))
             val users = parsePackages(AdbCore.command(this, connection, "pm list packages -3 --user 0"))
@@ -604,6 +674,8 @@ class DashboardActivity : Activity() {
     }
 
     override fun onDestroy() {
+        discovery?.cancel()
+        discovery = null
         worker.shutdown()
         super.onDestroy()
     }

@@ -8,6 +8,8 @@ import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class PairingReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -17,9 +19,24 @@ class PairingReceiver : BroadcastReceiver() {
         Thread {
             try {
                 val values = response.split(Regex("\\s+"))
-                require(values.size == 2) { translated(context, "Enter PORT CODE", "Informe PORTA CÓDIGO") }
-                val port = values[0].toIntOrNull() ?: error(translated(context, "Invalid port", "Porta inválida"))
-                AdbCore.pair(context, port, values[1])
+                require(values.size == 1 || values.size == 2) {
+                    translated(context, "Enter CODE or PORT CODE", "Informe CÓDIGO ou PORTA CÓDIGO")
+                }
+                val code = values.last()
+                val port = if (values.size == 2) values.first().toIntOrNull() else {
+                    val latch = CountDownLatch(1)
+                    var found: Int? = null
+                    val discovery = AdbDiscovery(context)
+                    discovery.discover(pairing = true) { p -> found = p; latch.countDown() }
+                    latch.await(11, TimeUnit.SECONDS)
+                    discovery.cancel()
+                    found
+                }
+                require(port != null && port in 1..65535) {
+                    translated(context, "Pairing port not found. Reply with PORT CODE.",
+                        "Porta não encontrada. Responda com PORTA CÓDIGO.")
+                }
+                AdbCore.pair(context, port, code)
                 context.getSharedPreferences("a01", Context.MODE_PRIVATE)
                     .edit().putBoolean("paired", true).apply()
                 result(context, translated(context, "Paired", "Pareado"),
@@ -51,15 +68,15 @@ class PairingReceiver : BroadcastReceiver() {
                 Intent(ctx, PairingReceiver::class.java),
                 PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val reply = RemoteInput.Builder("code")
-                .setLabel(translated(ctx, "PORT CODE", "PORTA CÓDIGO")).build()
+                .setLabel(translated(ctx, "CODE", "CÓDIGO")).build()
             val action = Notification.Action.Builder(android.R.drawable.ic_menu_edit,
-                translated(ctx, "Enter port and code", "Informar porta e código"), pending)
+                translated(ctx, "Enter pairing code", "Informar código de pareamento"), pending)
                 .addRemoteInput(reply).build()
             manager(ctx).notify(PAIR_NOTIFICATION, Notification.Builder(ctx, CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
                 .setContentTitle(translated(ctx, "Pair A01 Optimizer", "Parear A01 Optimizer"))
-                .setContentText(translated(ctx, "Reply with PORT CODE from Android settings.",
-                    "Responda com PORTA CÓDIGO das configurações."))
+                .setContentText(translated(ctx, "Reply with CODE (or PORT CODE if needed).",
+                    "Responda com CÓDIGO (ou PORTA CÓDIGO)."))
                 .addAction(action)
                 .setOngoing(true)
                 .build())
