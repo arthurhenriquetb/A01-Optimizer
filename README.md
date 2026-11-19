@@ -1,8 +1,8 @@
-# A01 Optimizer v0.3 — experimental
+# A01 Optimizer v0.3.1 — experimental
 
 Esta versão foi construída a partir do inventário de **297 pacotes do SM-A015M, Android 12** enviado pelo proprietário. É um app independente, que executa comandos ADB via Wi-Fi com pareamento de seis dígitos. **Sem root, sem Shizuku, sem computador.**
 
-A versão 0.3 **não desativa nada automaticamente**. Mostra uma lista fechada de 35 pacotes opcionais presentes no inventário do aparelho; muitos têm efeitos pequenos ou nulos sobre RAM e desempenho. Explica efeitos e riscos, exige seleção e confirmação e oferece restauração do que esta própria versão desativou.
+A versão 0.3.1 **não desativa nada automaticamente**. Mostra uma lista fechada de 35 pacotes opcionais presentes no inventário do aparelho; muitos têm efeitos pequenos ou nulos sobre RAM e desempenho. Explica efeitos e riscos, exige seleção e confirmação e oferece restauração do que esta própria versão desativou.
 
 ## Antes de usar
 
@@ -13,7 +13,7 @@ A versão 0.3 **não desativa nada automaticamente**. Mostra uma lista fechada d
 - Toque em **Conectar e analisar**.
 - Revise as caixas e, se quiser, use **Marcar sugestões de menor risco**. Leia cada descrição; não use a opção por impulso.
 - Toque em **Revisar e desativar selecionados**, confirme e teste os recursos do telefone.
-- Caso precise, toque em **Restaurar alterações** para reativar pacotes que a versão 0.3 registrou.
+- Caso precise, toque em **Restaurar alterações** para reativar pacotes que a versão 0.3.1 registrou.
 - A opção **Reativar Modo de emergência** tenta recuperar `com.sec.android.emergencylauncher`, já desativado no relatório.
 - Desligue depuração sem fio ao terminar.
 

@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         root.addView(label("A01 Optimizer", 27f, true))
-        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.3 • A01", 13f))
+        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.3.1 • A01", 13f))
         gap(root)
         status = label("Ainda não conectado", 16f, true)
         root.addView(status)
@@ -153,6 +153,11 @@ class MainActivity : Activity() {
         emergencyButton.isEnabled = !busy && connected && disabled.contains("com.sec.android.emergencylauncher")
         disableButton.isEnabled = !busy && connected && supported && chosen.isNotEmpty()
         restoreButton.isEnabled = !busy && connected && saved().isNotEmpty()
+        // Checkboxes are created while the asynchronous ADB task is still busy.
+        // Re-evaluate their enabled state when the task finishes, too.
+        for ((name, checkbox) in checkboxes) {
+            checkbox.isEnabled = !busy && connected && supported && name !in disabled
+        }
     }
     private fun port(): Int {
         val p = connectionPort.text.toString().trim().toIntOrNull() ?: error("Digite uma porta numérica.")
