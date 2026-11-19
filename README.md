@@ -1,41 +1,45 @@
-# A01 Optimizer 0.4 — experimental
+# A01 Optimizer v0.5 — experimental
 
-Aplicativo criado para o **Samsung Galaxy A01 SM-A015M/DS (Android 12)**. Usa depuração sem fio com pareamento ADB local; **não precisa de root, Shizuku ou computador**. Nenhum comando é executado sem seleção e confirmação.
+Aplicativo para o **Samsung Galaxy A01 SM-A015M/DS, Android 12**, sem root, Shizuku ou computador. Usa ADB por depuração sem fio, mediante pareamento e autorização manual.
 
-## Funções
+## O que mudou
 
-1. Diagnóstico de aplicativos do sistema.
-2. Desativar, com possibilidade de reativar, uma lista controlada de 35 componentes opcionais.
-3. Reativar o modo de emergência Samsung se estiver desativado.
-4. **Desinstalar aplicativos instalados pelo usuário**, com pesquisa e seleção manual. Isso pode apagar os dados desses aplicativos; para recuperá-los normalmente é necessário reinstalá-los. O app não promete restauração desses dados.
-5. **Remover aplicativos opcionais de fábrica apenas do usuário Android 0**, por `pm uninstall -k --user 0`. O arquivo de sistema não é excluído e a remoção pode ser revertida.
-6. **Restaurar aplicativos de fábrica que a versão 0.4 removeu**, com `cmd package install-existing --user 0`. O app procura preservar também o estado de desativação anterior.
-7. Exibir nomes amigáveis de apps, identificadores e avisos de risco, inclusive pesquisa na lista.
+- **Inventário completo:** a tela de gerenciamento lista *todos os pacotes de sistema instalados para o usuário 0*, inclusive componentes protegidos (no relatório original eram 297). Os pacotes normais também são mostrados.
+- **Pesquisa por nome ou identificador** em todas as categorias.
+- **Verde — menor risco:** componentes opcionais que podem ser removidos manualmente.
+- **Amarelo — avançado:** componentes que podem retirar funções úteis, como calendário, alarmes, serviços de voz e gerenciador de arquivos. Para marcar, o usuário precisa ativar o modo avançado e confirmar o alerta.
+- **Vermelho — protegido:** todos os demais pacotes aparecem com explicação de proteção. São somente informativos, nunca selecionáveis para remoção. A lista de vermelhos começa recolhida para não sobrecarregar o Galaxy A01; o usuário pode expandi-la ou encontrar qualquer item pela busca.
+- Catálogo de fábrica expandido de **51 para 61 opcionais** (35 em `SafeCatalog`, 16 em `FactoryExtras`, 10 em `AdvancedCatalog`). As opções de desativação reversível na tela principal continuam limitadas a 35.
+- Bancos conhecidos e todas as versões do A01 Optimizer são protegidos na lista de aplicativos comuns.
 
-A remoção de apps de fábrica só é oferecida para a lista fechada de **51 pacotes opcionais** (`SafeCatalog` + `FactoryExtras`), validados contra o inventário enviado pelo usuário. Não existe campo para digitar comandos arbitrários. Apps de bancos conhecidos, a própria família A01 Optimizer e serviços essenciais não são candidatos à remoção de fábrica.
+## Como usar
 
-## Como usar no celular
+1. Conecte o Galaxy A01 a um Wi-Fi privado e confiável.
+2. No A01 Optimizer 0.5, prepare a notificação de pareamento e vá a **Configurações → Opções do desenvolvedor → Depuração sem fio → Parear dispositivo com código**.
+3. Responda à notificação com **PORTA CÓDIGO**, separados por espaço.
+4. Na tela Depuração sem fio, veja a **porta de conexão** após o IP (não a porta de pareamento). Informe no app.
+5. Toque **Conectar e analisar**, depois **Abrir gerenciador completo de aplicativos → Atualizar lista**.
+6. Pesquise um app pelo nome ou pacote. Para ver todos os protegidos, toque **Mostrar componentes protegidos**.
+7. Para permitir selecionar itens amarelos, toque **Ativar modo avançado**, leia o aviso e confirme.
+8. Selecione somente o que não usa; revise a lista no diálogo final e confirme.
+9. Para reverter apps de fábrica removidos pela v0.5, use **Restaurar apps de fábrica removidos por esta versão**.
+10. Teste Nubank, Banco do Brasil, PicPay, PagBank, Inter, Banestes e demais apps bancários, além de chamadas, SMS, Wi-Fi, biometria, Pix e anexos. Desative a depuração sem fio quando terminar.
 
-1. Conecte-se ao Wi-Fi privado de confiança.
-2. Abra o A01 Optimizer 0.4, toque em **Preparar notificação de pareamento**.
-3. Em **Configurações → Opções do desenvolvedor → Depuração sem fio → Parear dispositivo com código**, responda à notificação com **PORTA CÓDIGO**, separados por um espaço.
-4. Na tela principal de depuração sem fio, copie para o app só a **porta de conexão**, após os dois-pontos (não é a porta de pareamento).
-5. Toque **Conectar e analisar**.
-6. Para desinstalar, toque em **Abrir gerenciador de desinstalação → Atualizar lista**.
-7. Pesquise o nome de um app, selecione apenas o que conhece e confira o aviso antes de confirmar.
-8. Para reverter remoções de fábrica da 0.4, use **Restaurar apps de fábrica removidos por esta versão**.
-9. Teste seus bancos (Nubank, Banco do Brasil, PicPay, PagBank, Inter e Banestes), chamadas, Wi-Fi, SMS, biometria e Pix após alterar apps. Desligue a depuração sem fio ao terminar.
+## O que cada remoção faz
 
-## Segurança e limitações
+- **App instalado pelo usuário:** `pm uninstall --user 0 <pacote>`. Pode apagar dados, conversas e preferências. Não há botão de restauração para apps comuns.
+- **App de fábrica opcional:** `pm uninstall -k --user 0 <pacote>`. Remove o app somente do usuário principal, preservando os arquivos originais do sistema. A v0.5 registra o pacote e tenta restaurá-lo com `cmd package install-existing --user 0 <pacote>`, preservando seu estado anterior de desativação quando possível.
+- **App vermelho:** nenhuma remoção permitida pela ferramenta. Ter acesso ADB a um pacote não significa que seja seguro desinstalá-lo.
 
-- **Apps comuns**: a desinstalação pode apagar dados e não há restauração automática.
-- **Apps de fábrica**: apenas removidos para o usuário 0, sem apagar a partição do sistema. Isso não garante grande ganho de RAM, espaço ou velocidade.
-- Banco e apps essenciais são protegidos por uma lista de bloqueio e por uma lista restrita de apps de fábrica. A identificação de apps bancários não é infalível, então revise as escolhas.
-- Não toca em root, bootloader, Play Integrity, Google Play Services, Knox, autenticação, rádio, telefonia ou biometria.
-- Mantenha as versões antigas instaladas até restaurar seus históricos, principalmente a v0.1.1 e v0.3.1. A v0.4 é um novo pacote Android, pois o GitHub Actions gera assinaturas de depuração novas em cada compilação. Requer novo pareamento.
-- Faça backup antes de desinstalar. **Não há garantia de compatibilidade bancária ou melhoria de desempenho.**
-- Não foi testado fisicamente no SM-A015M; experimente com um único app opcional de cada vez.
+## Segurança e limites
 
-## Código e compilação
+- Sem remoção automática, sem comandos arbitrários e com confirmação manual para cada lote.
+- Ainda não há garantia de compatibilidade de todos os bancos nem de ganho de desempenho. As classificações são conservadoras e não equivalem a testes práticos no SM-A015M.
+- O bloqueio de bancos usa nomes conhecidos e heurísticas, podendo não reconhecer aplicativos pouco conhecidos. Revise sempre.
+- `QUERY_ALL_PACKAGES` permite exibir nomes de apps instalados localmente. O inventário não é enviado a servidores.
+- **A versão 0.5 é um aplicativo separado** da 0.4, porque as builds do GitHub Actions têm assinatura de debug diferente. Faça novo pareamento. Guarde 0.4, 0.3.1 e 0.1.1 enquanto precisar dos respectivos históricos de restauração.
+- Faça backup antes de qualquer desinstalação. Remover app de fábrica sem root não libera o espaço da partição original do sistema.
 
-Projeto Kotlin/Android com a biblioteca [Kadb](https://github.com/flyfishxu/Kadb), licença Apache-2.0. GitHub Actions publica o APK de teste como artefato.
+## Compilação
+
+Código em Kotlin. GitHub Actions gera o APK experimental usando a biblioteca [Kadb](https://github.com/flyfishxu/Kadb), licença Apache-2.0.
