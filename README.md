@@ -1,29 +1,25 @@
-# A01 Optimizer — experimental
+# A01 Diagnóstico — v0.2 experimental
 
-Aplicativo Android para Samsung Galaxy A01 (SM-A015M/DS) com Android 12, desenvolvido para desativar **somente** alguns aplicativos opcionais por ADB sem fio, sem Shizuku, root ou computador durante o uso.
+Versão de diagnóstico para o Samsung Galaxy A01 SM-A015M com Android 12.
+Analisa os pacotes **do sistema** pelo ADB sem fio, sem Shizuku nem root, e copia um inventário para análise manual.
 
-**Aviso:** projeto experimental. O APK compilado ainda não foi testado em um aparelho real. Nenhum desempenho ou funcionamento de aplicativo bancário é garantido.
+**Não desativa nada.** Esta versão tem um `applicationId` diferente da versão 0.1.1, porque os APKs experimentais do GitHub usam certificados de depuração temporários diferentes e não conseguem atualizar uma instalação anterior. Ela pode ser instalada ao lado do A01 Optimizer 0.1.1.
 
-## Utilização
-1. Conecte o celular a uma rede Wi-Fi confiável.
-2. No aplicativo, toque em **Preparar notificação de pareamento**.
-3. Abra **Opções do desenvolvedor > Depuração sem fio > Parear dispositivo com código de pareamento**.
-4. Puxe a barra de notificações e responda à notificação do aplicativo com a **porta de pareamento**, um espaço e o **código de seis números** (ex.: `37121 123456`).
-5. Ao receber a confirmação, volte à tela principal de depuração sem fio e encontre **Endereço IP e porta**. No aplicativo, digite **somente a porta de conexão** e toque em **Conectar e analisar**.
-6. Selecione os aplicativos opcionais que conhece e não usa. Leia o aviso e confirme a desativação.
-7. Teste telefone, chamadas, internet, Nubank, BB, PicPay, PagBank, Inter, Banestes e outros serviços.
-8. Se houver problemas, **Restaurar alterações** reativa os pacotes que o otimizador registrou. Pode ser necessário reconectar a depuração sem fio para restaurar.
-9. Desligue a depuração sem fio após o uso.
+**Não desinstale a versão 0.1.1 antes de restaurar o que ela modificou**, caso queira reverter alterações anteriores.
 
-## Segurança
-- Lista fechada de pacotes não essenciais: não inclui pacotes bancários, Google, Knox ou autenticação.
-- Não executa comandos ADB inseridos por usuários.
-- Confirmação explícita antes de alterar o estado de qualquer pacote.
-- Histórico local para reversão, sem excluir dados nem fazer root.
-- Credencial ADB privada fica no armazenamento interno do aplicativo, sem backup.
-- **Atenção:** a depuração sem fio deve ser desligada após as operações, sobretudo fora de uma rede confiável.
+## Passos
 
-## Compilação
-O GitHub Actions compila `app-debug.apk` automaticamente a cada push na branch `main`; veja a aba **Actions** e baixe o artefato `A01-Optimizer-APK-experimental` no fluxo concluído. Ele contém o APK dentro de um ZIP.
+1. Instale o APK A01 Diagnóstico.
+2. Com o aparelho na rede Wi-Fi, prepare uma nova notificação de pareamento.
+3. Abra Configurações → Opções do desenvolvedor → Depuração sem fio → Parear dispositivo com código de pareamento.
+4. Responda à notificação com a porta de pareamento, espaço e código de seis dígitos, por exemplo `37121 123456`.
+5. Volte a Depuração sem fio, copie apenas a **porta de conexão** exibida ao lado do endereço IP.
+6. No app, digite-a em Porta de conexão, toque em Conectar e analisar e então em Copiar diagnóstico completo.
+7. Cole o texto numa conversa para avaliar quais pacotes são desnecessários, sem alterar bancos, Google, autenticação ou sistema essencial.
+8. Desligue a depuração sem fio quando terminar.
 
-Dependência: [Kadb](https://github.com/flyfishxu/Kadb) (Apache-2.0). O código do aplicativo é experimental e deve ser validado no aparelho alvo antes de uso importante.
+O app não envia dados para servidores. O relatório apenas é copiado para a área de transferência após um toque explícito. A lista de pacotes de sistema não inclui aplicativos instalados por você de forma comum (terceiros).
+
+## Fonte da biblioteca
+
+[Kadb](https://github.com/flyfishxu/Kadb) (Apache-2.0). Este APK é experimental e deve ser testado no dispositivo alvo.

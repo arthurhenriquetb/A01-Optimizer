@@ -6,11 +6,11 @@ android {
     namespace = "br.com.a01optimizer"
     compileSdk = 37
     defaultConfig {
-        applicationId = "br.com.a01optimizer"
+        applicationId = "br.com.a01optimizer.diagnostico"
         minSdk = 30
         targetSdk = 32
-        versionCode = 1
-        versionName = "0.1.1-experimental"
+        versionCode = 2
+        versionName = "0.2.0-diagnostico"
     }
     packaging { resources { excludes.add("META-INF/LICENSE.md") } }
     compileOptions {

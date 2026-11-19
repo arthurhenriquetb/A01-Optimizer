@@ -23,7 +23,7 @@ class PairingReceiver : BroadcastReceiver() {
                 AdbCore.pair(context, port, values[1])
                 context.getSharedPreferences("a01", Context.MODE_PRIVATE)
                     .edit().putBoolean("paired", true).apply()
-                result(context, "Pareamento concluído", "Volte ao A01 Optimizer para conectar.")
+                result(context, "Pareamento concluído", "Volte ao A01 Diagnóstico para conectar.")
             } catch (ex: Exception) {
                 result(context, "Pareamento não concluído", ex.message ?: "Confira porta e código")
             } finally { pending.finish() }
@@ -52,7 +52,7 @@ class PairingReceiver : BroadcastReceiver() {
             manager(ctx).notify(PAIR_NOTIFICATION,
                 Notification.Builder(ctx, CHANNEL)
                     .setSmallIcon(android.R.drawable.stat_sys_upload)
-                    .setContentTitle("Parear A01 Optimizer")
+                    .setContentTitle("Parear A01 Diagnóstico")
                     .setContentText("Responda com PORTA CÓDIGO usando os números das Configurações.")
                     .addAction(action)
                     .setOngoing(true)

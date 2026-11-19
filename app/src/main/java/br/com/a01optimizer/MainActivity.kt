@@ -2,6 +2,8 @@ package br.com.a01optimizer
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -31,6 +33,8 @@ class MainActivity : Activity() {
     private lateinit var connectButton: Button
     private lateinit var disableButton: Button
     private lateinit var restoreButton: Button
+    private lateinit var reportButton: Button
+    private var systemPackages = emptySet<String>()
     private val chosen = linkedSetOf<String>()
     private var installed = emptySet<String>()
     private var disabled = emptySet<String>()
@@ -50,7 +54,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         root.addView(label("A01 Optimizer", 27f, true))
-        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.1.1", 13f))
+        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.2 — diagnóstico", 13f))
         gap(root)
         status = label("Ainda não conectado", 16f, true)
         root.addView(status)
@@ -82,21 +86,29 @@ class MainActivity : Activity() {
         root.addView(connectButton)
         gap(root)
 
-        root.addView(label("3. Aplicativos opcionais", 19f, true))
-        root.addView(label("Selecione somente o que você conhece e não usa. Nunca desativaremos bancos nem componentes de segurança. Nada é alterado automaticamente.", 14f))
+        root.addView(label("3. Inventário do sistema", 19f, true))
+        root.addView(label("Esta versão lê os pacotes pré-instalados, sem modificar nada. O relatório é copiado apenas quando você tocar no botão; ele não é enviado automaticamente.", 14f))
+        reportButton = action("Copiar diagnóstico completo") { copyDiagnostic() }
+        root.addView(reportButton)
+        gap(root)
+
+        root.addView(label("4. Aplicativos opcionais encontrados", 19f, true))
+        root.addView(label("Somente leitura nesta versão: os itens abaixo são os que a versão anterior conhecia. Nenhum aplicativo será desativado aqui.", 14f))
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         list.addView(label("Conecte o ADB para identificar os aplicativos.", 14f))
         root.addView(list)
         disableButton = action("Desativar selecionados") { confirmDisable() }
+        disableButton.visibility = View.GONE
         root.addView(disableButton)
         gap(root)
 
-        root.addView(label("4. Restaurar alterações", 19f, true))
-        root.addView(label("Reativa os pacotes registrados por este aplicativo; não remove nem apaga seus dados.", 14f))
+        root.addView(label("5. Restauração na versão anterior", 19f, true))
+        root.addView(label("Não desinstale o A01 Optimizer 0.1.1: a versão anterior guarda o histórico de desativações. O diagnóstico não faz alterações.", 14f))
         restoreButton = action("Restaurar alterações") { confirmRestore() }
+        restoreButton.visibility = View.GONE
         root.addView(restoreButton)
         gap(root)
-        root.addView(label("Depois de otimizar, teste chamadas, internet e TODOS os seus bancos. Desligue a depuração sem fio quando terminar. Sem garantias de ganho de desempenho ou compatibilidade bancária.", 13f))
+        root.addView(label("Depois de copiar, cole o texto no ChatGPT para uma análise do seu modelo. Desligue a depuração sem fio quando terminar.", 13f))
         updateButtons()
     }
 
@@ -126,6 +138,7 @@ class MainActivity : Activity() {
     }
     private fun updateButtons() {
         connectButton.isEnabled = !busy
+        reportButton.isEnabled = !busy && connected && systemPackages.isNotEmpty()
         disableButton.isEnabled = !busy && connected && supported && chosen.isNotEmpty()
         restoreButton.isEnabled = !busy && connected && saved().isNotEmpty()
     }
@@ -165,15 +178,17 @@ class MainActivity : Activity() {
             val model = AdbCore.command(this, p, "getprop ro.product.model").trim()
             val present = packages(AdbCore.command(this, p, "pm list packages"))
             val deactivated = packages(AdbCore.command(this, p, "pm list packages -d"))
+            val system = packages(AdbCore.command(this, p, "pm list packages -s"))
             runOnUiThread {
                 supported = model.startsWith("SM-A015M") || model.startsWith("SM-A015F")
                 connected = true
                 installed = present
                 disabled = deactivated
+                systemPackages = system
                 showCatalog()
                 if (supported) {
                     val n = SafeCatalog.entries.count { it.name in present }
-                    message("Conectado: " + model + ". " + n + " opcionais encontrados.")
+                    message("Conectado: " + model + ". " + system.size + " pacotes do sistema detectados; " + n + " do catálogo antigo.")
                 } else {
                     message("Conectado: " + model + ". Desativação bloqueada fora do Galaxy A01.")
                 }
@@ -205,6 +220,37 @@ class MainActivity : Activity() {
             list.addView(check)
         }
         updateButtons()
+    }
+
+
+    private fun copyDiagnostic() {
+        if (!connected || systemPackages.isEmpty()) {
+            message("Conecte e analise o celular primeiro.")
+            return
+        }
+        val active = systemPackages.subtract(disabled)
+        val inactive = systemPackages.intersect(disabled)
+        val report = buildString {
+            appendLine("A01 DIAGNOSTICO V0.2 - SOMENTE PACOTES DO SISTEMA")
+            appendLine("Modelo: " + Build.MODEL)
+            appendLine("Android: " + Build.VERSION.RELEASE)
+            appendLine("Pacotes de sistema: " + systemPackages.size)
+            appendLine("Ativos: " + active.size + " / Desativados: " + inactive.size)
+            appendLine()
+            appendLine("=== DESATIVADOS ===")
+            inactive.sorted().forEach { appendLine(it) }
+            appendLine()
+            appendLine("=== ATIVOS ===")
+            active.sorted().forEach { appendLine(it) }
+            appendLine()
+            appendLine("Relatório copiado manualmente. Nenhuma mudança foi feita no aparelho.")
+        }
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Inventário A01", report))
+        AlertDialog.Builder(this)
+            .setTitle("Diagnóstico copiado")
+            .setMessage("Copiei " + systemPackages.size + " pacotes do sistema para a área de transferência. Abra a conversa com o ChatGPT e cole o texto. Nenhum pacote foi desativado.")
+            .setPositiveButton("OK", null).show()
     }
 
     private fun confirmDisable() {
