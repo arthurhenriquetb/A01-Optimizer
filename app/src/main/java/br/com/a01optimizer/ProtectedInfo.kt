@@ -5,6 +5,19 @@ package br.com.a01optimizer
  * de desinstalar: apenas que a versão atual não autoriza sua remoção.
  */
 object ProtectedInfo {
+    private val critical = setOf(
+        "android", "com.android.systemui", "com.android.settings", "com.android.shell",
+        "com.android.phone", "com.android.keychain", "com.android.se",
+        "com.android.vending", "com.google.android.gms", "com.google.android.gsf",
+        "com.google.android.webview", "com.android.chrome",
+        "com.google.android.packageinstaller", "com.google.android.permissioncontroller",
+        "com.sec.android.app.launcher", "com.samsung.android.honeyboard",
+        "com.sec.imsservice", "com.sec.epdg", "com.sec.android.emergencylauncher",
+        "com.samsung.android.biometrics.app.setting", "com.samsung.android.kgclient"
+    )
+
+    fun isCritical(packageName: String): Boolean = packageName in critical
+
     private val reasons = mapOf(
         "com.google.android.gms" to "Google Play Services: usado por autenticação e serviços de muitos aplicativos, inclusive bancos.",
         "com.google.android.gsf" to "Google Services Framework: infraestrutura Google e serviços de conta.",

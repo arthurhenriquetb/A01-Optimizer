@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         root.addView(label("A01 Optimizer", 27f, true))
-        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.5 • A01", 13f))
+        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.6 • A01", 13f))
         gap(root)
         status = label("Ainda não conectado", 16f, true)
         root.addView(status)
@@ -124,6 +124,8 @@ class MainActivity : Activity() {
         })
         gap(root)
         root.addView(label("Depois de alterar qualquer pacote, teste chamadas, SMS, internet, Pix, biometria e seus bancos. Desligue a depuração sem fio ao terminar. Ganho de desempenho e compatibilidade bancária não são garantidos.", 13f))
+        gap(root)
+        root.addView(label("Desenvolvido por Arthur Henrique, em 2026", 14f, true))
         updateButtons()
     }
 
@@ -296,7 +298,7 @@ class MainActivity : Activity() {
         val active = systemPackages.subtract(disabled)
         val inactive = systemPackages.intersect(disabled)
         val report = buildString {
-            appendLine("A01 OPTIMIZER V0.5 - RELATORIO DOS PACOTES DO SISTEMA")
+            appendLine("A01 OPTIMIZER V0.6 - RELATORIO DOS PACOTES DO SISTEMA")
             appendLine("Modelo: " + Build.MODEL)
             appendLine("Android: " + Build.VERSION.RELEASE)
             appendLine("Pacotes de sistema: " + systemPackages.size)

@@ -3,16 +3,22 @@ package br.com.a01optimizer
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.provider.Settings
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -21,12 +27,14 @@ import java.util.concurrent.Executors
  * Gerenciamento manual de aplicativos via ADB sem fio já pareado.
  * Apps comuns: removidos do usuário 0, com perda potencial de dados.
  * Apps de fábrica: removidos somente do usuário 0, com dados preservados e restauração.
- * Nunca executa nomes arbitrários: pacote validado + allowlist de fábrica.
+ * Nenhum pacote pode ser inventado: só pacotes obtidos do inventário ADB e
+ * identificadores previamente validados. Risco alto exige confirmação exata.
  */
 class UninstallActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("a01", Context.MODE_PRIVATE) }
     private val worker = Executors.newSingleThreadExecutor()
     private lateinit var status: TextView
+    private lateinit var connectionPort: EditText
     private lateinit var search: EditText
     private lateinit var userList: LinearLayout
     private lateinit var factoryList: LinearLayout
@@ -37,17 +45,24 @@ class UninstallActivity : Activity() {
     private lateinit var factoryButton: Button
     private lateinit var restoreButton: Button
     private lateinit var advancedButton: Button
-    private lateinit var showProtectedButton: Button
+    private lateinit var expertButton: Button
+    private lateinit var sortSpinner: Spinner
+    private lateinit var usageAccessButton: Button
+    private lateinit var sizeButton: Button
+    private lateinit var ramButton: Button
 
     private var loaded = false
     private var busy = false
     private var supported = false
     private var advancedMode = false
-    private var showProtected = false
+    private var expertMode = false
+    private var sortChoice = 0
     private var userApps = emptySet<String>()
     private var factoryApps = emptySet<String>()
     private var disabledApps = emptySet<String>()
     private var labels = emptyMap<String, String>()
+    private var ramKb = emptyMap<String, Long>()
+    private var sizeBytes = emptyMap<String, Long>()
     private val selectedUser = linkedSetOf<String>()
     private val selectedFactory = linkedSetOf<String>()
     private val userChecks = linkedMapOf<String, CheckBox>()
@@ -68,9 +83,28 @@ class UninstallActivity : Activity() {
         outer.addView(root)
         setContentView(outer)
 
-        root.addView(text("Desinstalar aplicativos", 24f, true))
-        root.addView(text("A01 Optimizer 0.5 • Galaxy A01", 13f))
-        root.addView(text("O celular deve estar pareado e conectado à depuração sem fio. Use a porta de conexão que você informou na tela anterior.", 14f))
+        root.addView(text("Todos os aplicativos", 24f, true))
+        root.addView(text("A01 Optimizer 0.6 • Galaxy A01", 13f))
+        root.addView(text("1. Ative Depuração sem fio. Para o primeiro uso desta versão, prepare a notificação, escolha Parear com código e responda à notificação com PORTA CÓDIGO. Depois informe abaixo a porta de conexão (não a de pareamento).", 14f))
+        root.addView(button("Preparar notificação de pareamento") {
+            try {
+                PairingReceiver.prepare(this)
+                say("Notificação preparada. Abra Depuração sem fio e faça o pareamento.")
+            } catch (e: Exception) { say("Erro ao preparar pareamento: ${e.message}") }
+        })
+        root.addView(button("Abrir Opções do desenvolvedor") {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+        })
+        connectionPort = EditText(this).apply {
+            hint = "Porta de conexão (ex.: 38437)"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            setText(prefs.getString("connection_port", ""))
+        }
+        root.addView(connectionPort)
+        root.addView(button("Abrir diagnóstico e desativação reversível") {
+            startActivity(Intent(this, MainActivity::class.java))
+        })
         space(root)
         status = text("Toque em Atualizar lista. Nenhuma alteração foi feita.", 15f, true)
         root.addView(status)
@@ -90,26 +124,40 @@ class UninstallActivity : Activity() {
             override fun afterTextChanged(s: Editable?) = Unit
         })
 
-        space(root)
-        userTitle = text("1. Aplicativos instalados por você", 19f, true)
-        root.addView(userTitle)
-        root.addView(text("A remoção destes aplicativos pode apagar dados, conversas e configurações. Para recuperá-los, será preciso reinstalá-los. Bancos identificados ficam bloqueados.", 14f))
-        userList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(userList)
-        userButton = button("Revisar e desinstalar selecionados") { confirmUserRemoval() }
-        root.addView(userButton)
+        root.addView(text("Ordenar os aplicativos por", 15f, true))
+        sortSpinner = Spinner(this)
+        val sortNames = arrayOf("Nome (A–Z)", "Tamanho (maior primeiro)", "RAM agora (maior primeiro)")
+        val sortAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sortNames)
+        sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        sortSpinner.adapter = sortAdapter
+        sortSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                sortChoice = position
+                renderLists()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
+        root.addView(sortSpinner)
+        root.addView(text("Tamanho: aplicativo + dados, quando o Android permitir acesso. RAM: memória PSS dos processos ativos, em uma fotografia do momento. '—' significa que não há medição; não significa zero.", 12f))
+        usageAccessButton = button("Permitir acesso aos tamanhos") {
+            try { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+            catch (ex: Exception) { say("Não foi possível abrir a permissão: ${ex.message}") }
+        }
+        root.addView(usageAccessButton)
+        sizeButton = button("Calcular tamanhos (pode demorar)") { updateSizes() }
+        root.addView(sizeButton)
+        ramButton = button("Atualizar RAM agora") { updateRam() }
+        root.addView(ramButton)
 
         space(root)
-        factoryTitle = text("2. Todos os aplicativos de fábrica", 19f, true)
+        factoryTitle = text("1. Todos os aplicativos de fábrica", 19f, true)
         root.addView(factoryTitle)
-        root.addView(text("VERDE: opcionais de menor risco. AMARELO: recursos que podem fazer falta e exigem modo avançado. VERMELHO: componentes protegidos que você pode consultar, mas não remover aqui. A remoção só vale para o usuário principal.", 14f))
+        root.addView(text("TODOS os pacotes aparecem abaixo, sem grupos escondidos. Samsung tem seção própria. VERDE é opcional; AMARELO exige modo avançado; VERMELHO tem risco alto e exige confirmação reforçada. Uma remoção errada pode impedir o celular de iniciar ou funcionar corretamente.", 14f))
+        root.addView(text("Possíveis candidatos no grupo vermelho, SE você não usa a função: papéis de parede animados, fundos de chamadas, seletores de toque, fila de impressão e histórico de localização. São hipóteses, não garantias; procure a etiqueta POSSÍVEL CANDIDATO.", 13f))
         advancedButton = button("Ativar modo avançado (opções amarelas)") { toggleAdvanced() }
         root.addView(advancedButton)
-        showProtectedButton = button("Mostrar componentes protegidos") {
-            showProtected = !showProtected
-            renderLists()
-        }
-        root.addView(showProtectedButton)
+        expertButton = button("Desbloquear remoção de alto risco (vermelho)") { toggleExpert() }
+        root.addView(expertButton)
         factoryList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(factoryList)
         factoryButton = button("Revisar remoção dos apps de fábrica") { confirmFactoryRemoval() }
@@ -117,10 +165,26 @@ class UninstallActivity : Activity() {
         restoreButton = button("Restaurar apps de fábrica removidos por esta versão") { confirmRestore() }
         root.addView(restoreButton)
         space(root)
-        root.addView(text("Não remova apps de banco, Play Services, teclado, telefonia, biometria, segurança ou outros componentes essenciais. Depois de qualquer mudança, teste seus aplicativos bancários e desligue a depuração sem fio.", 13f))
+
+        userTitle = text("2. Aplicativos instalados por você", 19f, true)
+        root.addView(userTitle)
+        root.addView(text("Apps comuns podem perder dados, conversas e configurações ao serem desinstalados. Bancos identificados e as versões do A01 Optimizer permanecem protegidos.", 14f))
+        userList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(userList)
+        userButton = button("Revisar e desinstalar apps comuns") { confirmUserRemoval() }
+        root.addView(userButton)
+        space(root)
+        root.addView(text("Não há remoção automática. Não recomendo apagar Play Services, WebView, teclado, telefonia, biometria ou segurança: bancos e funções essenciais podem parar de funcionar. Desligue a depuração sem fio quando terminar.", 13f))
+        space(root)
+        root.addView(text("Desenvolvido por Arthur Henrique, em 2026", 14f, true))
 
         renderLists()
         updateButtons()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::sizeButton.isInitialized) updateButtons()
     }
 
     private fun Int.dp() = (this * resources.displayMetrics.density + 0.5f).toInt()
@@ -155,7 +219,7 @@ class UninstallActivity : Activity() {
     }
 
     private fun validName(name: String) =
-        name.matches(Regex("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+"))
+        name == "android" || name.matches(Regex("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+"))
 
     private fun parsePackages(output: String): Set<String> = output.lineSequence()
         .map { it.trim() }
@@ -165,9 +229,10 @@ class UninstallActivity : Activity() {
         .toSet()
 
     private fun port(): Int {
-        val n = prefs.getString("connection_port", "")?.toIntOrNull()
-            ?: error("Volte à tela principal, informe a porta e toque em Conectar e analisar.")
-        require(n in 1..65535) { "Porta ADB inválida. Reconecte na tela principal." }
+        val n = connectionPort.text.toString().trim().toIntOrNull()
+            ?: error("Informe a porta de conexão mostrada na tela Depuração sem fio.")
+        require(n in 1..65535) { "Porta ADB inválida. Confira a porta de conexão." }
+        prefs.edit().putString("connection_port", n.toString()).apply()
         return n
     }
 
@@ -211,11 +276,14 @@ class UninstallActivity : Activity() {
             val inventory = readInventory(p)
             val available = inventory.user + inventory.factory
             val names = available.associateWith { id ->
-                try {
+                KnownNames.label(id) ?: optionalFactory[id]?.label ?: try {
                     val info = packageManager.getApplicationInfo(id, 0)
                     packageManager.getApplicationLabel(info).toString().ifBlank { id }
                 } catch (_: Exception) { id }
             }
+            val ramSnapshot = try {
+                PackageMetrics.ramPssKb(AdbCore.command(this, p, "dumpsys meminfo"), available)
+            } catch (_: Exception) { emptyMap() }
             runOnUiThread {
                 loaded = true
                 supported = inventory.model.startsWith("SM-A015M") ||
@@ -224,15 +292,58 @@ class UninstallActivity : Activity() {
                 factoryApps = inventory.factory
                 disabledApps = inventory.disabled
                 labels = names
+                ramKb = ramSnapshot
+                sizeBytes = emptyMap()
                 selectedUser.retainAll(userApps)
                 selectedFactory.retainAll(factoryApps)
                 renderLists()
                 say(if (supported)
-                    "${inventory.model}: ${userApps.size} apps instalados e ${factoryApps.size} de fábrica."
+                    "${inventory.model}: ${userApps.size} apps instalados e ${factoryApps.size} de fábrica. RAM medida agora; tamanhos sob consulta."
                 else "${inventory.model}: operações bloqueadas fora do Galaxy A01.")
             }
         }
     }
+
+    private fun updateSizes() {
+        if (!loaded || !supported) return
+        if (!PackageMetrics.hasUsageAccess(this)) {
+            say("Conceda primeiro o acesso a dados de uso nas Configurações.")
+            return
+        }
+        runTask("Calculando espaço ocupado pelos aplicativos; pode demorar...") { _ ->
+            val sizes = PackageMetrics.storageBytes(this, userApps + factoryApps)
+            runOnUiThread {
+                sizeBytes = sizes
+                renderLists()
+                say("Tamanhos disponíveis para ${sizes.size} aplicativos. É espaço do app e seus dados, não espaço que a remoção de fábrica necessariamente libera.")
+            }
+        }
+    }
+
+    private fun updateRam() {
+        if (!loaded || !supported) return
+        runTask("Atualizando memória dos processos ativos...") { p ->
+            val updated = PackageMetrics.ramPssKb(
+                AdbCore.command(this, p, "dumpsys meminfo"), userApps + factoryApps
+            )
+            runOnUiThread {
+                ramKb = updated
+                renderLists()
+                say("RAM atualizada para ${updated.size} pacotes com processos identificados. A ausência de PSS não significa que o app nunca consome RAM.")
+            }
+        }
+    }
+
+    private fun ordered(ids: List<String>): List<String> = when (sortChoice) {
+        1 -> ids.sortedWith(compareByDescending<String> { sizeBytes[it] ?: -1L }
+            .thenBy { (labels[it] ?: it).lowercase(Locale.ROOT) })
+        2 -> ids.sortedWith(compareByDescending<String> { ramKb[it] ?: -1L }
+            .thenBy { (labels[it] ?: it).lowercase(Locale.ROOT) })
+        else -> ids.sortedBy { (labels[it] ?: it).lowercase(Locale.ROOT) }
+    }
+
+    private fun measurements(id: String): String =
+        "Tamanho: ${PackageMetrics.bytesLabel(sizeBytes[id])} • RAM agora: ${PackageMetrics.ramLabel(ramKb[id])}"
 
     private fun searchMatch(id: String): Boolean {
         val term = search.text.toString().trim().lowercase(Locale.ROOT)
@@ -254,8 +365,10 @@ class UninstallActivity : Activity() {
     }
 
     private fun authorizedFactory(id: String): Boolean {
-        val entry = optionalFactory[id] ?: return false
-        return !protected(id) && (entry.risk == Risk.LOWER || advancedMode)
+        if (id !in factoryApps || !validName(id) || ProtectedInfo.isCritical(id)) return false
+        val entry = optionalFactory[id]
+        return if (entry == null || protected(id)) expertMode
+            else entry.risk == Risk.LOWER || advancedMode
     }
 
     private fun toggleAdvanced() {
@@ -268,7 +381,7 @@ class UninstallActivity : Activity() {
         }
         AlertDialog.Builder(this)
             .setTitle("Ativar modo avançado?")
-            .setMessage("As opções AMARELAS podem retirar recursos úteis: calendário, alarmes, voz, arquivos e sincronização. Os componentes VERMELHOS continuarão protegidos. Nada será removido automaticamente.")
+            .setMessage("As opções AMARELAS podem retirar recursos úteis: calendário, alarmes, voz, arquivos e sincronização. Os VERMELHOS exigem desbloqueio separado. Nada será removido automaticamente.")
             .setNegativeButton("Cancelar", null)
             .setPositiveButton("Ativar") { _, _ ->
                 advancedMode = true
@@ -277,19 +390,38 @@ class UninstallActivity : Activity() {
             }.show()
     }
 
+    private fun toggleExpert() {
+        if (expertMode) {
+            expertMode = false
+            selectedFactory.removeAll { it !in optionalFactory || protected(it) }
+            renderLists()
+            say("Remoção de alto risco bloqueada novamente.")
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Desbloquear remoção de alto risco?")
+            .setMessage("ATENÇÃO: você poderá remover pacotes que não foram validados no Galaxy A01. Isso pode quebrar bancos, chamadas, Wi-Fi ou até a inicialização do Android. Restaurar pelo aplicativo só funciona se o Android e o ADB continuarem acessíveis. Serviços absolutamente críticos continuarão bloqueados para preservar a recuperação. Cada pacote vermelho deverá ser confirmado individualmente, digitando seu identificador completo.")
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Entendi os riscos") { _, _ ->
+                expertMode = true
+                renderLists()
+                say("Modo de alto risco ativo. Nenhum pacote foi marcado automaticamente.")
+            }.show()
+    }
+
     private fun renderLists() {
         if (!::userList.isInitialized || !::factoryList.isInitialized || !::search.isInitialized) return
         userChecks.clear()
         userList.removeAllViews()
-        val users = userApps.filter(::searchMatch)
-            .sortedBy { (labels[it] ?: it).lowercase(Locale.ROOT) }
-        userTitle.text = "1. Aplicativos instalados por você (${userApps.size})"
+        val users = ordered(userApps.filter(::searchMatch))
+        userTitle.text = "2. Aplicativos instalados por você (${userApps.size})"
         if (!loaded) userList.addView(text("Conecte e atualize para ver os aplicativos.", 14f))
         else if (users.isEmpty()) userList.addView(text("Nenhum aplicativo encontrado nesta busca.", 14f))
         users.forEach { id ->
             val locked = protected(id)
             val checkbox = CheckBox(this).apply {
-                text = (labels[id] ?: id) + (if (locked) " — PROTEGIDO" else "") + "\n$id" +
+                text = (labels[id] ?: id) + (if (locked) " — PROTEGIDO" else "") +
+                    "\n$id\n${measurements(id)}" +
                     (if (locked) "\n" + (if (id.startsWith("br.com.a01optimizer"))
                         "Ferramenta do A01 Optimizer; preserve o histórico de restauração."
                     else "Aplicativo bancário/financeiro identificado por nome; mantido protegido.") else "")
@@ -308,36 +440,40 @@ class UninstallActivity : Activity() {
 
         factoryChecks.clear()
         factoryList.removeAllViews()
-        val eligible = optionalFactory.values.filter { it.name in factoryApps && !protected(it.name) }
-        val red = factoryApps.filter { it !in optionalFactory || protected(it) }
-            .sortedBy { (labels[it] ?: it).lowercase(Locale.ROOT) }
-        val green = eligible.filter { it.risk == Risk.LOWER }
-        val yellow = eligible.filter { it.risk == Risk.CONDITIONAL }
-        factoryTitle.text = "2. Aplicativos de fábrica (${factoryApps.size}) • Verde: ${green.size} • Amarelo: ${yellow.size} • Vermelho: ${red.size}"
-        showProtectedButton.text = if (showProtected) "Ocultar componentes protegidos (${red.size})"
-            else "Mostrar componentes protegidos (${red.size})"
+        val greenCount = factoryApps.count { optionalFactory[it]?.risk == Risk.LOWER && !protected(it) }
+        val yellowCount = factoryApps.count { optionalFactory[it]?.risk == Risk.CONDITIONAL && !protected(it) }
+        val redCount = factoryApps.size - greenCount - yellowCount
+        factoryTitle.text = "1. Apps de fábrica (${factoryApps.size}) • Verde: $greenCount • Amarelo: $yellowCount • Vermelho: $redCount"
         advancedButton.text = if (advancedMode) "Desativar modo avançado (amarelo)"
             else "Ativar modo avançado (amarelo)"
+        expertButton.text = if (expertMode) "Bloquear novamente a remoção de alto risco"
+            else "Desbloquear remoção de alto risco (vermelho)"
 
         if (!loaded) {
             factoryList.addView(text("Conecte e atualize para ver todos os pacotes.", 14f))
         } else {
-            for ((risk, group, title, color) in listOf(
-                RiskGroup(Risk.LOWER, green, "VERDE • Menor risco", Color.rgb(30, 123, 65)),
-                RiskGroup(Risk.CONDITIONAL, yellow, "AMARELO • Modo avançado", Color.rgb(146, 96, 0))
-            )) {
-                val matches = group.filter { searchMatch(it.name) }.sortedBy { it.label.lowercase(Locale.ROOT) }
-                if (matches.isEmpty()) continue
-                factoryList.addView(header("$title (${matches.size})", color))
-                matches.forEach { entry ->
-                    val id = entry.name
+            val matching = factoryApps.filter(::searchMatch)
+            for (group in listOf("SAMSUNG", "ANDROID / GOOGLE", "OUTROS / OPERADORA")) {
+                val items = ordered(matching.filter { KnownNames.group(it) == group })
+                if (items.isEmpty()) continue
+                factoryList.addView(header("$group (${items.size})", Color.rgb(30, 72, 124)))
+                items.forEach { id ->
+                    val entry = optionalFactory[id]
+                    val category = when {
+                        ProtectedInfo.isCritical(id) -> "CRÍTICO — BLOQUEADO"
+                        entry?.risk == Risk.LOWER && !protected(id) -> "VERDE — MENOR RISCO"
+                        entry?.risk == Risk.CONDITIONAL && !protected(id) -> "AMARELO — AVANÇADO"
+                        else -> "VERMELHO — ALTO RISCO"
+                    }
+                    val explanation = entry?.explanation ?: ProtectedInfo.reason(id)
+                    val suggestion = RiskSuggestions.notes[id]?.let { "\nPOSSÍVEL CANDIDATO: $it" } ?: ""
+                    val disabledNote = if (id in disabledApps) "\n(Já está desativado.)" else ""
                     val checkbox = CheckBox(this).apply {
-                        text = "${entry.label}\n$id\n${entry.explanation}" +
-                            (if (id in disabledApps) "\n(Já está desativado.)" else "")
+                        text = "${labels[id] ?: id} [$category]\n$id\n${measurements(id)}\n$explanation$suggestion$disabledNote"
                         textSize = 14f
                         setPadding(0, 5.dp(), 0, 5.dp())
                         isChecked = id in selectedFactory
-                        isEnabled = !busy && supported && (risk == Risk.LOWER || advancedMode)
+                        isEnabled = !busy && supported && authorizedFactory(id)
                         setOnCheckedChangeListener { _, checked ->
                             if (checked) selectedFactory.add(id) else selectedFactory.remove(id)
                             updateButtons()
@@ -347,34 +483,12 @@ class UninstallActivity : Activity() {
                     factoryList.addView(checkbox)
                 }
             }
-
-            val redMatches = red.filter(::searchMatch)
-            if (redMatches.isNotEmpty()) {
-                factoryList.addView(header("VERMELHO • Protegidos (${redMatches.size})", Color.rgb(174, 39, 42)))
-                if (showProtected || search.text.isNotBlank()) {
-                    redMatches.forEach { id ->
-                        val explanation = if (protected(id)) "App bancário/financeiro identificado; protegido."
-                            else ProtectedInfo.reason(id)
-                        factoryList.addView(text("${labels[id] ?: id} — PROTEGIDO\n$id\n$explanation" +
-                            (if (id in disabledApps) "\n(Já está desativado.)" else ""), 13f))
-                    }
-                } else {
-                    factoryList.addView(text("Toque em 'Mostrar componentes protegidos' para consultar nomes, identificadores e motivos. Não é possível selecioná-los.", 14f))
-                }
-            }
-            if (eligible.none { searchMatch(it.name) } && redMatches.isEmpty()) {
+            if (matching.isEmpty()) {
                 factoryList.addView(text("Nenhum pacote encontrado nesta busca.", 14f))
             }
         }
         updateButtons()
     }
-
-    private data class RiskGroup(
-        val risk: Risk,
-        val entries: List<OptionalPackage>,
-        val title: String,
-        val color: Int
-    )
 
     private fun updateButtons() {
         if (!::scanButton.isInitialized) return
@@ -385,12 +499,17 @@ class UninstallActivity : Activity() {
             selectedFactory.any { it in factoryApps && authorizedFactory(it) }
         restoreButton.isEnabled = !busy && loaded && supported && removedFactory().isNotEmpty()
         advancedButton.isEnabled = !busy && loaded && supported
-        showProtectedButton.isEnabled = !busy && loaded && redCount() > 0
+        expertButton.isEnabled = !busy && loaded && supported
+        val usageGranted = PackageMetrics.hasUsageAccess(this)
+        usageAccessButton.text = if (usageGranted) "Acesso a tamanhos autorizado"
+            else "Permitir acesso aos tamanhos"
+        usageAccessButton.isEnabled = !busy && !usageGranted
+        sizeButton.isEnabled = !busy && loaded && supported && usageGranted
+        ramButton.isEnabled = !busy && loaded && supported
+        sortSpinner.isEnabled = !busy
         userChecks.forEach { (id, check) -> check.isEnabled = !busy && supported && !protected(id) }
         factoryChecks.forEach { (id, check) -> check.isEnabled = !busy && supported && authorizedFactory(id) }
     }
-
-    private fun redCount() = factoryApps.count { it !in optionalFactory || protected(it) }
 
     private fun confirmUserRemoval() {
         if (!loaded || !supported) return
@@ -437,7 +556,33 @@ class UninstallActivity : Activity() {
             it in factoryApps && authorizedFactory(it) && validName(it)
         }
         if (targets.isEmpty()) return
-        val lines = targets.joinToString("\n") { "• ${optionalFactory[it]?.label ?: it} ($it)" }
+        val lines = targets.joinToString("\n") { "• ${labels[it] ?: it} ($it)" }
+        val redTargets = targets.filter { it !in optionalFactory || protected(it) }
+        if (redTargets.isNotEmpty()) {
+            if (targets.size != 1) {
+                AlertDialog.Builder(this).setTitle("Confirmação individual obrigatória")
+                    .setMessage("Pacotes VERMELHOS devem ser removidos um de cada vez. Desmarque os demais pacotes e selecione apenas um de alto risco.")
+                    .setPositiveButton("OK", null).show()
+                return
+            }
+            val id = redTargets.single()
+            val type = if (RiskSuggestions.notes.containsKey(id))
+                "Há uma hipótese de que seja dispensável caso você não use a função descrita. ISSO NÃO FOI TESTADO NO SEU APARELHO."
+            else "Não há validação de segurança para remover esse pacote."
+            val exact = EditText(this).apply {
+                hint = "Digite exatamente: $id"
+                setSingleLine(true)
+            }
+            AlertDialog.Builder(this).setTitle("RISCO ALTO: $id")
+                .setMessage("$type\n\n${ProtectedInfo.reason(id)}\n\nPode impedir bancos, recursos básicos ou a inicialização. Se o Android ou ADB pararem, o botão de restaurar pode não funcionar. Para confirmar, digite o IDENTIFICADOR COMPLETO abaixo.")
+                .setView(exact)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Remover mesmo assim") { _, _ ->
+                    if (exact.text.toString().trim() == id) removeFactoryApps(listOf(id))
+                    else say("Identificador diferente. A remoção de alto risco foi cancelada.")
+                }.show()
+            return
+        }
         val advancedCount = targets.count { optionalFactory[it]?.risk == Risk.CONDITIONAL }
         AlertDialog.Builder(this).setTitle("Remover ${targets.size} app(s) de fábrica?")
             .setMessage("Os componentes deixarão de funcionar para o seu usuário. Não excluímos os arquivos da partição do sistema. Podemos restaurá-los nesta versão.\n\n$lines\n\nOpções amarelas nesta seleção: $advancedCount. Isso pode afetar funções do celular. Faça backup antes.")
@@ -446,7 +591,7 @@ class UninstallActivity : Activity() {
     }
 
     private fun removeFactoryApps(targets: List<String>) {
-        runTask("Removendo opcionais de fábrica do usuário 0...") { p ->
+        runTask("Removendo aplicativos de fábrica do usuário 0...") { p ->
             var successes = 0
             var errors = 0
             for (id in targets) {
@@ -482,14 +627,14 @@ class UninstallActivity : Activity() {
                 renderLists()
                 say("Fábrica removidos: $successes • Falhas: $errors")
                 AlertDialog.Builder(this).setTitle("Remoção concluída")
-                    .setMessage("Removidos para o usuário atual: $successes\nFalhas: $errors\n\nVocê pode usar o botão de restauração, sem reinstalar o Android.")
+                    .setMessage("Removidos para o usuário atual: $successes\nFalhas: $errors\n\nA restauração só é possível pelo app se o Android e o ADB continuarem funcionando. Teste as funções essenciais.")
                     .setPositiveButton("OK", null).show()
             }
         }
     }
 
     private fun confirmRestore() {
-        val records = removedFactory().filter { optionalFactory.containsKey(it) && validName(it) }
+        val records = removedFactory().filter(::validName)
         if (records.isEmpty() || !supported || !loaded) return
         AlertDialog.Builder(this).setTitle("Restaurar ${records.size} app(s) de fábrica?")
             .setMessage("Reinstala apenas para o usuário 0 os aplicativos de fábrica removidos por esta versão. Apps comuns desinstalados não podem ser restaurados por este botão.")
@@ -501,7 +646,7 @@ class UninstallActivity : Activity() {
         runTask("Restaurando aplicativos de fábrica...") { p ->
             var count = 0
             var errors = 0
-            for (id in removedFactory().filter { optionalFactory.containsKey(it) && validName(it) }) {
+            for (id in removedFactory().filter(::validName)) {
                 try {
                     val response = AdbCore.command(this, p, "cmd package install-existing --user 0 $id")
                     if (response.contains("Failure", ignoreCase = true) || response.contains("Exception", ignoreCase = true)) {
