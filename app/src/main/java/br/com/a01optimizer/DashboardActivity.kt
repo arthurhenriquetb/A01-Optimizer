@@ -66,11 +66,37 @@ class DashboardActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        lang = prefs.getString("language",
-            if (Locale.getDefault().language == "pt") "pt" else "en") ?: "en"
+        lang = prefs.getString("language", "en") ?: "en"
         loadLocalApps()
         buildUi()
-        if (savedInstanceState == null) window.decorView.post { askAutoConnect() }
+        if (savedInstanceState == null) window.decorView.post {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                if (prefs.getString("connection_port", "") == "5555") {
+                    scan(5555, automatic = true)
+                } else if (!prefs.getBoolean("setup_intro_v010", false)) {
+                    prefs.edit().putBoolean("setup_intro_v010", true).apply()
+                    AlertDialog.Builder(this)
+                        .setTitle(tr("Ready to use", "Pronto para usar"))
+                        .setMessage(tr(
+                            "Your installed apps are available. Want to unlock factory-app management? A guided setup handles the rest.",
+                            "Seus aplicativos já estão disponíveis. Quer habilitar o gerenciamento dos apps de fábrica? Uma configuração guiada cuida do restante."
+                        ))
+                        .setNegativeButton(tr("Later", "Depois"), null)
+                        .setPositiveButton(tr("Set up", "Configurar")) { _, _ -> openGuidedSetup() }
+                        .show()
+                }
+            } else askAutoConnect()
+        }
+    }
+
+    @Deprecated("Result callback for guided initial setup")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 410 && resultCode == RESULT_OK) scan(5555)
+    }
+
+    private fun openGuidedSetup() {
+        startActivityForResult(Intent(this, SetupActivity::class.java), 410)
     }
 
     override fun onResume() {
@@ -329,32 +355,43 @@ class DashboardActivity : Activity() {
             setSingleLine(true)
             setText(prefs.getString("connection_port", ""))
         }
-        content.addView(label(tr("ADB connection", "Conexão ADB"), 18f, true))
+        content.addView(label(tr("Full access", "Acesso completo"), 18f, true))
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            content.addView(label(tr(
-                "Android 10: installed apps can be viewed and selected without ADB. " +
-                    "Wireless pairing with a code requires Android 11+. " +
-                    "Removing factory apps requires initial computer/USB setup.",
-                "Android 10: você já pode consultar e selecionar apps sem ADB. " +
-                    "Pareamento sem fio por código exige Android 11+. " +
-                    "Para remover apps de fábrica é necessária configuração inicial com computador e cabo USB."
+            content.addView(label(if (connected) tr(
+                "Connected. Factory-app management is available.",
+                "Conectado. O gerenciamento dos apps de fábrica está disponível."
+            ) else tr(
+                "Basic mode is ready. Enable factory-app management with a guided setup.",
+                "O modo básico já funciona. Ative o gerenciamento dos apps de fábrica com a configuração guiada."
             ), 13f))
+            val setup = button(tr("Set up full access", "Configurar acesso completo")) {
+                openGuidedSetup()
+            }
+            setup.backgroundTintList = ColorStateList.valueOf(accent)
+            setup.setTextColor(Color.WHITE)
+            content.addView(setup)
+            content.addView(button(tr("Check connection", "Verificar conexão")) {
+                scan(5555)
+            })
         } else {
             content.addView(label(tr(
                 "Android 11+: enable Wireless debugging and pair this app once.",
                 "Android 11+: ative a depuração sem fio e pareie este app uma vez."
             ), 12f))
         }
-        content.addView(button(tr("Connect automatically", "Conectar automaticamente")) {
-            autoConnect()
-        })
-        content.addView(button(if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R)
-            tr("Open developer options", "Abrir opções do desenvolvedor") else tr("Pair", "Parear")) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) PairingReceiver.prepare(this)
-                startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
-            } catch (e: Exception) { toast(e.message ?: tr("Could not open settings", "Não foi possível abrir ajustes")) }
-        })
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            content.addView(button(tr("Connect automatically", "Conectar automaticamente")) {
+                autoConnect()
+            })
+            content.addView(button(tr("Pair", "Parear")) {
+                try {
+                    PairingReceiver.prepare(this)
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+                } catch (e: Exception) {
+                    toast(e.message ?: tr("Could not open settings", "Não foi possível abrir ajustes"))
+                }
+            })
+        }
         val manual = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
@@ -398,7 +435,7 @@ class DashboardActivity : Activity() {
         })
         content.addView(label(tr("Required to sort by full app size.",
             "Necessário para ordenar pelo tamanho completo."), 12f))
-        content.addView(label("Android Optimizer v0.9 · universal", 15f, true))
+        content.addView(label("Android Optimizer v0.10 · universal", 15f, true))
     }
 
     private fun setLanguage(code: String) {
@@ -420,15 +457,7 @@ class DashboardActivity : Activity() {
 
     private fun autoConnect() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            AlertDialog.Builder(this)
-                .setTitle(tr("Android 10 compatibility", "Compatibilidade com Android 10"))
-                .setMessage(tr(
-                    "This phone has no Android 11+ wireless pairing. The local app list already works. " +
-                        "To change factory apps, use ADB with a computer and USB cable first.",
-                    "Este Android não tem pareamento sem fio do Android 11+. " +
-                        "A listagem local já funciona. Para modificar apps de fábrica, configure ADB " +
-                        "primeiro usando um computador e cabo USB."))
-                .setPositiveButton("OK", null).show()
+            openGuidedSetup()
             return
         }
         if (busy) return
@@ -459,6 +488,10 @@ class DashboardActivity : Activity() {
     }
 
     private fun showSetupDialog(message: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            openGuidedSetup()
+            return
+        }
         AlertDialog.Builder(this)
             .setTitle(tr("Wireless debugging", "Depuração sem fio"))
             .setMessage(message)
@@ -575,8 +608,14 @@ class DashboardActivity : Activity() {
                 runOnUiThread {
                     if (automatic) {
                         connected = false
-                        showSetupDialog(tr("Could not reconnect. Turn on Wireless debugging and pair this app once if needed.",
-                            "Não foi possível reconectar. Ative a depuração sem fio e pareie este app se necessário."))
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                            statusText = tr("Basic mode · tap Connect to set up factory apps",
+                                "Modo básico · toque em Conectar para configurar apps de fábrica")
+                            updateActions()
+                        } else showSetupDialog(tr(
+                            "Could not reconnect. Turn on Wireless debugging and pair this app once if needed.",
+                            "Não foi possível reconectar. Ative a depuração sem fio e pareie este app se necessário."
+                        ))
                     } else {
                         AlertDialog.Builder(this).setTitle(tr("Operation failed", "Operação não concluída"))
                             .setMessage((e.message ?: "ADB disconnected").take(400))
@@ -672,10 +711,7 @@ class DashboardActivity : Activity() {
         if (!connected) {
             val first = targets.firstOrNull { it in userApps }
             if (first == null) {
-                showSetupDialog(tr("ADB is required to remove factory apps. " +
-                    "You can keep the selection and connect later.",
-                    "ADB é necessário para remover apps de fábrica. " +
-                    "Você pode manter a seleção e conectar depois."))
+                openGuidedSetup()
                 return
             }
             AlertDialog.Builder(this)
