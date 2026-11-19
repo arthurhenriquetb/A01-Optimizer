@@ -21,7 +21,7 @@ import android.widget.TextView
 import java.util.concurrent.Executors
 
 /**
- * A01 Optimizer: somente comandos de leitura e uma lista fechada de desativações reversíveis.
+ * A01 Optimizer: diagnóstico, desativação reversível e gerenciamento manual de apps.
  * Não altera banco, Knox, serviços Google, Play Integrity, root ou bootloader.
  */
 class MainActivity : Activity() {
@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(scroll)
 
         root.addView(label("A01 Optimizer", 27f, true))
-        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.3.1 • A01", 13f))
+        root.addView(label("Android 12 • " + Build.MODEL + " • versão experimental 0.4 • A01", 13f))
         gap(root)
         status = label("Ainda não conectado", 16f, true)
         root.addView(status)
@@ -116,6 +116,12 @@ class MainActivity : Activity() {
         root.addView(label("O seu relatório mostrou o Modo de emergência da Samsung desativado. Recomendamos reativá-lo.", 14f))
         emergencyButton = action("Reativar Modo de emergência") { restoreEmergency() }
         root.addView(emergencyButton)
+        gap(root)
+        root.addView(label("6. Desinstalar aplicativos", 19f, true))
+        root.addView(label("Gerencie apps instalados e remova apps opcionais de fábrica para este usuário. Apps instalados podem perder seus dados. Apenas os apps de fábrica removidos por esta versão podem ser restaurados por ela.", 14f))
+        root.addView(action("Abrir gerenciador de desinstalação") {
+            startActivity(Intent(this, UninstallActivity::class.java))
+        })
         gap(root)
         root.addView(label("Depois de alterar qualquer pacote, teste chamadas, SMS, internet, Pix, biometria e seus bancos. Desligue a depuração sem fio ao terminar. Ganho de desempenho e compatibilidade bancária não são garantidos.", 13f))
         updateButtons()
@@ -290,7 +296,7 @@ class MainActivity : Activity() {
         val active = systemPackages.subtract(disabled)
         val inactive = systemPackages.intersect(disabled)
         val report = buildString {
-            appendLine("A01 OPTIMIZER V0.3 - RELATORIO DOS PACOTES DO SISTEMA")
+            appendLine("A01 OPTIMIZER V0.4 - RELATORIO DOS PACOTES DO SISTEMA")
             appendLine("Modelo: " + Build.MODEL)
             appendLine("Android: " + Build.VERSION.RELEASE)
             appendLine("Pacotes de sistema: " + systemPackages.size)

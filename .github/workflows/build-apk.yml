@@ -31,6 +31,6 @@ jobs:
       - name: Disponibilizar o APK
         uses: actions/upload-artifact@v4
         with:
-          name: A01-Optimizer-v031-APK-experimental
+          name: A01-Optimizer-v04-APK-experimental
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
