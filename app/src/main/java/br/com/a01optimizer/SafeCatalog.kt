@@ -27,7 +27,7 @@ object SafeCatalog {
         lower("com.samsung.android.dynamiclock", "Tela de bloqueio dinâmica", "Dispensável se não usa papéis de parede dinâmicos."),
         lower("com.samsung.android.stickercenter", "Figurinhas Samsung", "Desativa funções de figurinhas e adesivos."),
         lower("com.samsung.storyservice", "Histórias da Galeria", "Desativa histórias automáticas da Galeria."),
-        lower("com.samsung.android.app.appsedge", "Apps Edge", "Dispensável se não usa o painel lateral de aplicativos."),
+        conditional("com.samsung.android.app.appsedge", "Apps Edge", "Pode afetar o painel Edge e recursos de multitarefa; evite se utiliza."),
         lower("com.samsung.android.app.clipboardedge", "Área de transferência Edge", "Dispensável se não usa o painel lateral de cópia."),
         lower("com.samsung.android.app.taskedge", "Tarefas Edge", "Dispensável se não usa atalhos laterais."),
         lower("com.samsung.android.service.peoplestripe", "Contatos Edge", "Dispensável se não usa o painel de contatos."),
