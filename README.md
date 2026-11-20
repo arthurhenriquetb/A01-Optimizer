@@ -1,4 +1,15 @@
-# Android Optimizer v0.10 — guided setup
+# Android Optimizer — v0.10 (current working version)
+
+## Version status
+
+| Version | Status | Public distribution |
+| --- | --- | --- |
+| **v0.10** | **Current working version and the baseline for all future normal development.** Includes guided Android 10 setup and conservative risk categories; **no black/critical removal tier**. | Intended public release |
+| **v0.10-X** (formerly v0.11) | **PRIVATE, UNTESTED, EXTREMELY HIGH-RISK EXPERIMENT — NOT A RELEASE.** Expert mode can select **every detected package**, including Android's critical components, for attempted removal after a single warning. It could disable essential functions, cause data loss, boot failures or force a factory reset. **This experiment will not be the basis for future normal versions.** | **No public source code, build, APK, or downloads** |
+
+**Important:** v0.10-X is mentioned here only to document its existence and safety risks. Its private code and builds are **not** part of the public v0.10 release. Do not publish the experimental branch, its Git history or its build artifacts. This repository currently contains historical experimental commits, so **do not make this existing repository public without first separating the v0.10 source into a fresh public repository with clean history**.
+
+## About v0.10
 
 Lightweight app browser and package management for **Android 10+** across Motorola, Samsung, Xiaomi and other manufacturers. Created by **Arthur Henrique Tostes Batista Aranha · 2026**.
 
