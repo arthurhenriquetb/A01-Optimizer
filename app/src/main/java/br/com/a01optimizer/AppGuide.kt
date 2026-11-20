@@ -299,26 +299,40 @@ object AppGuide {
     }
 
     fun level(id: String): Int = when {
-        adviseKeep(id) -> 2
+        adviseKeep(id) -> 3
         entries[id]?.risk == Risk.LOWER -> 0
         entries[id]?.risk == Risk.CONDITIONAL -> 1
         else -> 2
     }
 
-    fun color(level: Int): Int = when (level) { 0 -> 0xFF26834A.toInt(); 1 -> 0xFFA36E00.toInt(); else -> 0xFFC03F3A.toInt() }
-    fun levelName(level: Int, pt: Boolean) = if (pt)
-        arrayOf("Verde", "Amarelo", "Vermelho")[level]
-    else arrayOf("Green", "Yellow", "Red")[level]
+    fun color(level: Int): Int = when (level) {
+        0 -> 0xFF26834A.toInt()
+        1 -> 0xFFA36E00.toInt()
+        2 -> 0xFFC03F3A.toInt()
+        else -> 0xFF212121.toInt()
+    }
+    fun levelName(level: Int, pt: Boolean): String = if (pt)
+        arrayOf("Verde", "Amarelo", "Vermelho", "Preto · Crítico")[level]
+    else arrayOf("Green", "Yellow", "Red", "Black · Critical")[level]
 
     fun description(id: String, pt: Boolean): String {
+        if (adviseKeep(id)) {
+            val details = if (pt) ProtectedInfo.reason(id)
+                else englishNotes[id] ?: "Core device or operating-system component."
+            val warning = if (pt)
+                "CRÍTICO: a remoção pode impedir o Android de iniciar ou comprometer chamadas, bancos e a recuperação por ADB."
+            else "CRITICAL: removal may prevent Android from starting or disable calls, banking, or ADB recovery."
+            return "$warning\n$details"
+        }
         if (pt) return entries[id]?.explanation ?: RiskSuggestions.notes[id]
             ?: ProtectedInfo.reason(id)
-        return englishNotes[id] ?: if (ProtectedInfo.isCritical(id))
-            "Essential component. Removing it can break the phone, authentication or banking apps."
+        return englishNotes[id] ?: if (entries[id] == null)
+            "Unverified system component. Removing it may disable other apps or system features."
         else "Function or dependencies are not fully verified on this model."
     }
 
     fun reviewedSuggestions(ids: Set<String>): List<String> =
-        (entries.keys + RiskSuggestions.notes.keys + criticalGuide).distinct().filter { it in ids }
+        (entries.keys + RiskSuggestions.notes.keys + criticalGuide + ProtectedInfo.criticalIds())
+            .distinct().filter { it in ids }
             .sortedWith(compareBy<String> { level(it) }.thenBy { englishNames[it] ?: it })
 }

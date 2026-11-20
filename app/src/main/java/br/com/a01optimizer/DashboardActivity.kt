@@ -171,6 +171,11 @@ class DashboardActivity : Activity() {
             Tab.SETTINGS -> showSettings(content)
         }
 
+        val credit = label(tr("Developed by Arthur Henrique Tostes Batista Aranha · 2026",
+            "Desenvolvido por Arthur Henrique Tostes Batista Aranha · 2026"), 10f)
+        credit.gravity = Gravity.CENTER
+        root.addView(credit)
+
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val tabs = listOf(
             Tab.APPS to tr("Apps", "Apps"),
@@ -215,7 +220,7 @@ class DashboardActivity : Activity() {
         filters.addView(categoryPicker, LinearLayout.LayoutParams(0, 44.dp(), 2f))
         val riskPicker = picker(arrayOf(tr("Any risk", "Todos os riscos"),
             tr("🟢 Green", "🟢 Verde"), tr("🟡 Yellow", "🟡 Amarelo"),
-            tr("🔴 Red", "🔴 Vermelho")), riskFilter) {
+            tr("🔴 Red", "🔴 Vermelho"), tr("⚫ Black", "⚫ Preto")), riskFilter) {
             riskFilter = it; updateList()
         }
         filters.addView(riskPicker, LinearLayout.LayoutParams(0, 44.dp(), 1.35f))
@@ -266,8 +271,8 @@ class DashboardActivity : Activity() {
 
     private fun showGuide(content: LinearLayout) {
         content.addView(label(tr("Suggestions", "Sugestões"), 18f, true))
-        content.addView(label(tr("Select several suggestions without leaving this tab.",
-            "Marque várias sugestões sem sair desta tela."), 12f))
+        content.addView(label(tr("Select several suggestions without leaving this tab. Black means a critical system component.",
+            "Marque várias sugestões sem sair desta tela. Preto identifica um componente crítico do sistema."), 12f))
         guideSelectionLabel = label("", 13f, true)
         content.addView(guideSelectionLabel)
         reviewButton = button(tr("Review selected apps", "Revisar apps selecionados")) {
@@ -284,7 +289,7 @@ class DashboardActivity : Activity() {
         }, LinearLayout.LayoutParams(0, 44.dp(), 2f))
         filters.addView(picker(arrayOf(tr("All levels", "Todos"),
             tr("🟢 Green", "🟢 Verde"), tr("🟡 Yellow", "🟡 Amarelo"),
-            tr("🔴 Red", "🔴 Vermelho")), guideRisk) {
+            tr("🔴 Red", "🔴 Vermelho"), tr("⚫ Black", "⚫ Preto")), guideRisk) {
             guideRisk = it; updateGuide()
         }, LinearLayout.LayoutParams(0, 44.dp(), 1.35f))
         content.addView(filters)
@@ -313,8 +318,7 @@ class DashboardActivity : Activity() {
                 val id = suggestions[position]
                 val level = AppGuide.level(id)
                 val title = AppGuide.name(id, lang == "pt", labels[id] ?: id)
-                val flag = arrayOf("🟢", "🟡", "🔴")[level]
-                val keep = AppGuide.adviseKeep(id)
+                val flag = arrayOf("🟢", "🟡", "🔴", "⚫")[level]
                 val check = (convertView as? CheckBox) ?: CheckBox(this@DashboardActivity).apply {
                     textSize = 14f
                     setTextColor(ink)
@@ -323,10 +327,9 @@ class DashboardActivity : Activity() {
                 }
                 check.setOnCheckedChangeListener(null)
                 check.text = "$flag ${AppGuide.levelName(level, lang == "pt").uppercase(Locale.ROOT)}" +
-                    (if (keep) tr(" · KEEP", " · MANTER") else "") +
                     " · $title\n${AppGuide.description(id, lang == "pt")}\n$id"
                 check.isChecked = id in selected
-                check.isEnabled = !keep
+                check.isEnabled = true
                 check.setOnCheckedChangeListener { _, checked ->
                     if (checked) selected.add(id) else selected.remove(id)
                     updateActions()
@@ -430,7 +433,7 @@ class DashboardActivity : Activity() {
         })
         content.addView(label(tr("Required to sort by full app size.",
             "Necessário para ordenar pelo tamanho completo."), 12f))
-        content.addView(label("DebloaToast v0.10", 15f, true))
+        content.addView(label("DebloaToast Expert v0.11", 15f, true))
     }
 
     private fun setLanguage(code: String) {
@@ -557,7 +560,7 @@ class DashboardActivity : Activity() {
             val size = PackageMetrics.bytesLabel(sizes[id])
             val memory = PackageMetrics.ramLabel(ram[id])
             val risk = AppGuide.level(id)
-            val flag = arrayOf("🟢", "🟡", "🔴")[risk]
+            val flag = arrayOf("🟢", "🟡", "🔴", "⚫")[risk]
             val group = AppGuide.categoryNames(lang == "pt")[AppGuide.category(id)]
             checkbox.setOnCheckedChangeListener(null)
             checkbox.text = "${AppGuide.name(id, lang == "pt", labels[id] ?: id)}  $flag\n" +
@@ -686,23 +689,8 @@ class DashboardActivity : Activity() {
     private fun confirmUninstall() {
         val selectedOnDevice = selected.filter { it in systemApps || it in userApps }.filter(::isValidId)
         if (selectedOnDevice.isEmpty() || busy) return
-        // On a different manufacturer's firmware, unknown system packages must not
-        // be removed solely because the user can see their package names.
-        val blocked = selectedOnDevice.filter { id ->
-            id in systemApps && (ProtectedInfo.isCritical(id) ||
-                (id !in AppGuide.entries && id !in RiskSuggestions.notes))
-        }
-        val targets = selectedOnDevice - blocked.toSet()
-        if (targets.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle(tr("System apps protected", "Aplicativos de sistema protegidos"))
-                .setMessage(tr("The selected system packages have not been reviewed for removal " +
-                    "on this phone. No changes were made.",
-                    "Os pacotes de sistema selecionados não foram revisados para remoção " +
-                    "neste aparelho. Nenhuma alteração foi feita."))
-                .setPositiveButton("OK", null).show()
-            return
-        }
+        // All user-selected packages remain eligible; severity is explained in confirmation.
+        val targets = selectedOnDevice
         if (!connected) {
             val first = targets.firstOrNull { it in userApps }
             if (first == null) {
@@ -729,16 +717,24 @@ class DashboardActivity : Activity() {
         val systemCount = targets.count { it in systemApps }
         val preview = targets.take(7).joinToString("\n") { labels[it] ?: it }
         val more = if (targets.size > 7) "\n+${targets.size - 7}" else ""
-        val warning = if (systemCount > 0)
-            tr("\n\nWarning: removing system components can break Android, banking apps and ADB. Recovery is not guaranteed.",
-                "\n\nAtenção: remover componentes do sistema pode quebrar o Android, bancos e ADB. A recuperação não é garantida.")
-        else tr("\n\nInstalled apps may lose their data.", "\n\nApps instalados podem perder dados.")
-        val skipped = if (blocked.isNotEmpty()) tr(
-            "\n\n${blocked.size} unreviewed or critical system apps will be kept.",
-            "\n\n${blocked.size} apps de sistema não revisados ou críticos serão preservados."
-        ) else ""
+        val criticalTargets = targets.filter { it in systemApps && AppGuide.level(it) == 3 }
+        val criticalCount = criticalTargets.size
+        val unknownCount = targets.count { it in systemApps && AppGuide.level(it) == 2 }
+        val criticalList = criticalTargets.take(12).joinToString("\n") { "• $it" } +
+            if (criticalCount > 12) "\n+${criticalCount - 12}" else ""
+        val warning = when {
+            criticalCount > 0 -> tr(
+                "\n\n⚫ BLACK — CRITICAL ($criticalCount)\n$criticalList\n\nThese changes can make the device unusable, prevent Android from starting, disable calls, banking or recovery through ADB, and cause permanent data loss. Restoring the original firmware may be necessary or may not work. You are responsible for choosing which packages to remove; reversal is not guaranteed.",
+                "\n\n⚫ PRETO — CRÍTICO ($criticalCount)\n$criticalList\n\nEssas alterações podem inutilizar o aparelho, impedir o Android de iniciar, desativar chamadas, bancos ou a recuperação por ADB e causar perda permanente de dados. Reinstalar o firmware pode ser necessário ou não resolver. Você é responsável por escolher quais pacotes remover; a reversão não é garantida."
+            )
+            systemCount > 0 -> tr(
+                "\n\nWarning: $unknownCount red system packages have unverified dependencies. Removal may break Android, banking or ADB, and recovery is not guaranteed.",
+                "\n\nAtenção: $unknownCount pacotes vermelhos têm dependências não verificadas. A remoção pode afetar Android, bancos ou ADB; a recuperação não é garantida."
+            )
+            else -> tr("\n\nInstalled apps may lose their data.", "\n\nApps instalados podem perder dados.")
+        }
         AlertDialog.Builder(this).setTitle(tr("Uninstall ${targets.size} apps?", "Desinstalar ${targets.size} apps?"))
-            .setMessage(preview + more + warning + skipped)
+            .setMessage(preview + more + warning)
             .setNegativeButton(tr("Cancel", "Cancelar"), null)
             .setPositiveButton(tr("Uninstall", "Desinstalar")) { _, _ -> uninstall(targets) }.show()
     }

@@ -1,54 +1,64 @@
-# DebloaToast
+# DebloaToast Expert v0.11
 
-**Android debloating made simple.**
+**Android debloating with guided ADB setup — including advanced removal of critical system packages.**
 
-DebloaToast is a lightweight Android package manager for Android 10 and later, designed to browse installed apps, identify optional packages, and remove unwanted apps with user confirmation. It uses the device's actual package inventory instead of a fixed manufacturer-specific list. Compatibility varies by device and Android version.
+**Developer:** Arthur Henrique Tostes Batista Aranha  
+**Development disclosure:** The application concept, feature decisions and testing were directed by the developer. Application code was produced with assistance from ChatGPT (AI-generated / AI-assisted). The project has not been independently security-audited.
 
-## Current release
+**Download:** [DebloaToast Expert v0.11 for Android](../../releases/latest) · [Windows setup helper](../../releases/latest)
 
-**DebloaToast v0.10** is the only published release of the project. [Download the Android APK](../../releases/latest).
+DebloaToast runs on **Android 10 or later**. It displays packages actually present on the device instead of depending on a fixed list for one phone model. Manufacturer compatibility and risk classifications vary with the Android version and firmware.
 
-The v0.10.1 experiment explored unrestricted removal of critical system components. **It is unreleased, untested, and not available for download.** The published v0.10 intentionally protects known critical and unreviewed system packages.
+## ⚠ Expert version: potentially irreversible changes
 
-## Features
+**The Expert version allows you to select and attempt to uninstall ANY package displayed in the app, including Android system components normally considered essential.** The developer does not claim that these removals are safe. Android or ADB may still deny a command, but DebloaToast itself does not block critical packages once the ADB connection is established.
 
-- Browse installed and factory system packages on Motorola, Samsung, Xiaomi, and other Android devices.
-- Search by name or package ID, filter by manufacturer, function and risk, and sort by name, size or RAM where supported.
-- Review package suggestions and select several apps with checkboxes without leaving the suggestions tab.
-- Uninstall regular applications through Android's own confirmation screen.
-- Remove supported optional factory-installed applications for Android user 0 with an authorized ADB connection, without root.
-- Restore factory packages removed through this app when supported by the device.
-- English interface by default, with an optional Brazilian Portuguese translation.
-- Guided first-time setup, including a Windows companion for Android 10.
+Possible consequences include:
+- Android failing to boot, becoming unstable or unusable.
+- Loss of calls, SMS, mobile data, Wi-Fi, notifications, accessibility or device security.
+- Banking, payment and authentication apps stopping working.
+- Loss of ADB access, preventing a straightforward restoration.
+- Permanent data loss, the need to reinstall the original firmware, or damage that cannot be fixed by ordinary software recovery.
 
-## Android compatibility and setup
+**Use at your own risk.** The user is responsible for choosing which packages to remove and for any resulting consequences. Back up important data and be prepared for full firmware recovery before modifying critical system packages. An uninstall via ADB typically removes a system package for Android user 0 without erasing its read-only system image, but **that does not mean the phone or its data can always be recovered.** Removing or disabling essential components can break the system before a restoration can be performed.
 
-### Guided setup — no command line
+### Four risk levels
 
-DebloaToast works in **basic mode without ADB**: browse packages, use filters and suggestions, and uninstall regular downloaded apps through Android's confirmation screen.
+| Level | Meaning | Removal selection |
+| --- | --- | --- |
+| 🟢 Green | Lower-risk, apparently optional package | Available |
+| 🟡 Yellow | Removal can affect features you may use | Available |
+| 🔴 Red | Higher or unknown risk; dependencies not validated | Available |
+| ⚫ Black — Critical | Known essential or highly sensitive Android/manufacturer components | **Available — severe warning** |
 
-For factory-app management, DebloaToast guides you through the connection process, without asking you to install or type ADB commands yourself:
+A **single explicit warning** appears before executing the uninstall operation, especially when black-level packages are selected. The tool does not remove anything without the user's selection and confirmation. This is not a safety guarantee; the four levels are estimates and cannot account for every Android firmware.
 
-- **Android 10 (Windows PC + USB data cable for first setup):** In the app, open **Connect → Set up full access**. It guides you to enable USB debugging and provides a **Download Windows helper** button, so the helper ZIP can be downloaded on your phone. Transfer the ZIP to your Windows PC (for example, over USB), extract it, and double-click **Conectar-Windows.cmd**. The helper automatically downloads **Google's official Android Platform Tools** if needed, detects the connected phone and sets up ADB. Accept the USB debugging authorization on the phone, then return to DebloaToast and tap **Check connection**. Once the network connection is active, the USB cable can be disconnected while you keep working on the same trusted network.
-- **Android 11+ (no computer for supported devices):** Use the phone's built-in **Wireless debugging** option. Pair DebloaToast using the code shown by Android; the app discovers the connection port and can reconnect using its saved pairing authorization when wireless debugging remains enabled.
+## Main features
 
-You **don't need to download or configure ADB separately**: the Windows helper obtains the official tools, and Android 11+ uses the system's own wireless debugging functionality. This aims to make setup usable without an external tutorial.
+- View installed and preinstalled packages from the actual phone, not a device-specific preset.
+- Search and filter by function, manufacturer and risk level, including black (critical).
+- Select multiple items from **Suggestions** without leaving that tab.
+- Sort by name, estimated app size or measured RAM where available.
+- Uninstall ordinary applications with Android's confirmation.
+- With authorized ADB, attempt uninstall of selected factory and critical packages for Android user 0, without root.
+- Keep a restoration history for system packages removed by the app, where restoration remains possible.
+- English interface and optional Brazilian Portuguese translation.
 
-**Limits:** An ordinary Android app cannot enable debugging or approve its own first ADB authorization. Some Windows PCs need an OEM USB driver, and the wireless connection may need to be set up again after a phone restart. The Android 10 helper opens legacy ADB on TCP port 5555; use it only on trusted Wi-Fi and turn off network debugging when finished.
+## Guided connection — no separate ADB installation
 
-## Risk and safety
+**Basic app browsing** works without ADB; you can also uninstall ordinary user-installed applications using Android's own confirmation dialog.
 
-**Green** indicates lower-risk candidates, **yellow** indicates feature-dependent removals, and **red** indicates unknown or higher-risk packages. Risk labels are guidance, not a universal safety guarantee. **The published v0.10 blocks known critical and unreviewed system packages from its ADB removal operation.**
+**Android 10:** To manage system packages, open **Connect → Set up full access**. The built-in wizard helps open Developer options and USB debugging, and offers a **Windows helper ZIP download** directly from the phone. Transfer that ZIP to a Windows computer, extract it and double-click `Conectar-Windows.cmd`. The script downloads **Google's official Android Platform Tools** automatically, detects the USB-connected phone and prepares a network ADB connection. Approve the phone's USB debugging prompt. When ready, return to DebloaToast and choose **Check connection**. Once connected over a trusted network, the USB cable can be disconnected.
 
-Removing system packages can disrupt updates, cellular service, accounts, accessibility, banking apps or even device startup. Back up important data before making changes. ADB uninstall for Android user 0 does not erase the read-only system image; restoration is not guaranteed.
+**Android 11+:** Use Android's built-in wireless debugging pairing code. DebloaToast can discover the current connection port and reuse saved pairing authorization. No computer is generally required on devices supporting Android's wireless debugging.
 
-The Android 10 Windows companion may enable legacy ADB TCP mode on port 5555, which exposes a debugging endpoint on the local network. Use only on trusted private Wi-Fi and disable the debugging connection afterward.
+An ordinary third-party app cannot bypass the initial Android debugging approval. Some Windows computers may require the manufacturer's USB driver. On Android 10, a restart can require running the helper again. Avoid using network ADB on public Wi-Fi; the legacy TCP port 5555 is exposed to the local network and should be disabled after use.
 
-## Technical information
+## Files and build
 
-- Android 10+ (API 29+), Kotlin, Kadb and Gradle.
-- Built as a debug-signed APK; it is not a Play Store release.
-- Current package identifier remains `br.com.a01optimizer.v08` for compatibility with earlier signed installations.
-- [Source code](../../) and [latest release](../../releases/latest).
+- `DebloaToast-Expert-v0.11.apk` — public Android installer (debug-signed).
+- `DebloaToast-Windows.zip` — optional Windows companion for Android 10.
+- Minimum supported Android: 10 (API 29). Kotlin, Kadb and Gradle.
+- The application ID `br.com.a01optimizer.v08` remains unchanged to preserve compatibility with earlier installations using the same signing key.
 
-No automatic uninstallation is performed. This software has not been independently security-audited.
+This is an **experimental Expert tool, not a Play Store application**. Testing on a limited number of phones does not establish safety or compatibility on all devices.

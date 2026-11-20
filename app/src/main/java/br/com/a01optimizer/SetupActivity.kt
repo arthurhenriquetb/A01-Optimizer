@@ -26,7 +26,7 @@ class SetupActivity : Activity() {
     private var checking = false
     private var lastError = ""
     private val helperUrl =
-        "https://github.com/arthurhenriquetb/A01-Optimizer/releases/download/v0.10/DebloaToast-Windows.zip"
+        "https://github.com/arthurhenriquetb/DebloaToast/releases/download/v0.11/DebloaToast-Windows.zip"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -1,4 +1,4 @@
-name: Build DebloaToast v0.10
+name: Build DebloaToast Expert v0.11
 on:
   workflow_dispatch:
   push:
@@ -38,28 +38,47 @@ jobs:
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
             keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -noprompt
           fi
-      - name: Compile release APK
+      - name: Compile Expert APK
         run: gradle --no-daemon :app:assembleDebug
       - name: Prepare public APK filename
-        run: cp app/build/outputs/apk/debug/app-debug.apk DebloaToast-v0.10.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk DebloaToast-Expert-v0.11.apk
       - name: Upload current build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DebloaToast-v0.10-APK
-          path: DebloaToast-v0.10.apk
+          name: DebloaToast-Expert-v0.11-APK
+          path: DebloaToast-Expert-v0.11.apk
           if-no-files-found: error
       - name: Publish single stable GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="DebloaToast-v0.10.apk"
+          APK="DebloaToast-Expert-v0.11.apk"
           COMPANION="desktop/DebloaToast-Windows.zip#DebloaToast-Windows.zip"
-          if gh release view v0.10 >/dev/null 2>&1; then
-            gh release upload v0.10 "$APK" "$COMPANION" --clobber
-            gh release delete-asset v0.10 app-debug.apk --yes >/dev/null 2>&1 || true
-            gh release edit v0.10 --title "DebloaToast v0.10" --notes-file RELEASE_NOTES.md --latest
+          if gh release view v0.11 >/dev/null 2>&1; then
+            gh release upload v0.11 "$APK" "$COMPANION" --clobber
+            gh release edit v0.11 --title "DebloaToast Expert v0.11" --notes-file RELEASE_NOTES.md --latest
           else
-            gh release create v0.10 "$APK" "$COMPANION" --title "DebloaToast v0.10" --notes-file RELEASE_NOTES.md --latest
+            gh release create v0.11 "$APK" "$COMPANION" --title "DebloaToast Expert v0.11" --notes-file RELEASE_NOTES.md --latest
+          fi
+      - name: Keep only the Expert public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.11 >/dev/null 2>&1; then
+            gh release delete v0.10 --yes --cleanup-tag 2>/dev/null || true
+          else
+            echo "v0.11 was not published; retaining prior release." >&2
+            exit 1
+          fi
+      - name: Update repository About description if permitted
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api --method PATCH "repos/$GITHUB_REPOSITORY" -f description='DebloaToast Expert v0.11 — Android 10+ debloater with guided ADB setup and critical system-app removal. Extreme risk; use at your own risk. Developer: Arthur Henrique Tostes Batista Aranha.' -f homepage='https://github.com/arthurhenriquetb/DebloaToast/releases/latest'; then
+            echo "Repository About description updated."
+          else
+            echo "GitHub Actions token cannot edit repository About settings. README and release notes were updated."
           fi
       - name: Remove obsolete build artifacts and runs
         env:

@@ -1,8 +1,7 @@
 package br.com.a01optimizer
 
-/** Explicações conservadoras para pacotes que não estão nas listas revisadas.
- * O texto NÃO implica que todos os pacotes vermelhos são tecnicamente impossíveis
- * de desinstalar: apenas que a versão atual não autoriza sua remoção.
+/** Informações sobre componentes críticos e pacotes de sistema desconhecidos.
+ * A classificação alerta sobre riscos e não impede a seleção na versão 0.11.
  */
 object ProtectedInfo {
     private val critical = setOf(
@@ -19,6 +18,7 @@ object ProtectedInfo {
     )
 
     fun isCritical(packageName: String): Boolean = packageName in critical
+    fun criticalIds(): Set<String> = critical
 
     private val reasons = mapOf(
         "com.google.android.gms" to "Google Play Services: usado por autenticação e serviços de muitos aplicativos, inclusive bancos.",
@@ -81,6 +81,6 @@ object ProtectedInfo {
             "Componente Samsung ainda não validado para remoção neste modelo."
         packageName.startsWith("com.android.") || packageName == "android" ->
             "Componente Android ainda não validado para remoção; pode ter dependências internas."
-        else -> "Função e dependências não validadas; permanece protegido por precaução."
+        else -> "Função e dependências não validadas; remover pode causar falhas no Android."
     }
 }
