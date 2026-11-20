@@ -157,7 +157,7 @@ class DashboardActivity : Activity() {
             setBackgroundColor(Color.rgb(250, 251, 253))
             setPadding(10.dp(), 6.dp(), 10.dp(), 8.dp())
         }
-        val title = label("Android Optimizer", 22f, true)
+        val title = label("DebloaToast", 22f, true)
         root.addView(title)
         statusLabel = label(deviceStatus(), 12f)
         root.addView(statusLabel)
@@ -170,11 +170,6 @@ class DashboardActivity : Activity() {
             Tab.TOOLS -> showTools(content)
             Tab.SETTINGS -> showSettings(content)
         }
-
-        val credit = label(tr("Developed by Arthur Henrique Tostes Batista Aranha · 2026",
-            "Desenvolvido por Arthur Henrique Tostes Batista Aranha · 2026"), 10f)
-        credit.gravity = Gravity.CENTER
-        root.addView(credit)
 
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val tabs = listOf(
@@ -435,7 +430,7 @@ class DashboardActivity : Activity() {
         })
         content.addView(label(tr("Required to sort by full app size.",
             "Necessário para ordenar pelo tamanho completo."), 12f))
-        content.addView(label("Android Optimizer v0.10 · universal", 15f, true))
+        content.addView(label("DebloaToast v0.10", 15f, true))
     }
 
     private fun setLanguage(code: String) {

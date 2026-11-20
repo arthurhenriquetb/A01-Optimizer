@@ -1,11 +1,11 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
-$host.UI.RawUI.WindowTitle = "Android Optimizer - Conectar"
+$host.UI.RawUI.WindowTitle = "DebloaToast - Conectar"
 Write-Host ""
-Write-Host "ANDROID OPTIMIZER - CONFIGURACAO AUTOMATICA" -ForegroundColor Cyan
+Write-Host "DEBLOATOAST - CONFIGURACAO AUTOMATICA" -ForegroundColor Cyan
 Write-Host "Ferramentas oficiais do Android. Nenhum comando para digitar."
 Write-Host ""
-$root = Join-Path $env:LOCALAPPDATA "AndroidOptimizer"
+$root = Join-Path $env:LOCALAPPDATA "DebloaToast"
 $adb = Join-Path $root "platform-tools\adb.exe"
 try {
   if (-not (Test-Path $adb)) {
@@ -56,7 +56,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "Nao foi possivel ativar a conexao ADB: $response" }
   Write-Host ""
   Write-Host "PRONTO!" -ForegroundColor Green
-  Write-Host "Volte ao Android Optimizer no celular e toque VERIFICAR CONEXAO."
+  Write-Host "Volte ao DebloaToast no celular e toque VERIFICAR CONEXAO."
   Write-Host "Se o celular pedir outra autorizacao de depuracao, toque PERMITIR."
   Write-Host ""
   Write-Host "ATENCAO: a depuracao pela rede fica ativa ate reiniciar ou desativar."

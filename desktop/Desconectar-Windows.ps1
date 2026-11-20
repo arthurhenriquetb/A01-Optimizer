@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
-$host.UI.RawUI.WindowTitle = "Android Optimizer - Desconectar"
-$root = Join-Path $env:LOCALAPPDATA "AndroidOptimizer"
+$host.UI.RawUI.WindowTitle = "DebloaToast - Desconectar"
+$root = Join-Path $env:LOCALAPPDATA "DebloaToast"
 $adb = Join-Path $root "platform-tools\adb.exe"
 if (-not (Test-Path $adb)) {
   Write-Host "O ADB nao foi encontrado neste computador."

@@ -1,46 +1,47 @@
-# Android Optimizer — v0.10
+# DebloaToast
 
-**v0.10 is the current working version.** This is the baseline for future development.
+**Android debloating made simple.**
 
-Android Optimizer is an Android 10+ app for viewing installed packages and managing unwanted applications, including some factory-installed apps through ADB. Designed for Motorola, Samsung, Xiaomi, and other Android devices; actual compatibility varies by manufacturer and firmware.
+DebloaToast is a lightweight Android package manager for Android 10 and later, designed to browse installed apps, identify optional packages, and remove unwanted apps with user confirmation. It uses the device's actual package inventory instead of a fixed manufacturer-specific list. Compatibility varies by device and Android version.
 
-**Project concept and requirements:** Arthur Henrique Tostes Batista Aranha  
-**Code:** Written with ChatGPT (AI-generated). The project has not undergone an independent security audit.
+## Current release
 
-## Versions
+**DebloaToast v0.10** is the only published release of the project. [Download the Android APK](../../releases/latest).
 
-| Version | Status | Availability |
-| --- | --- | --- |
-| **v0.10** | Current working version, with conservative protections and **no unrestricted critical-package removal**. All normal development continues from here. | Source code in this repository; APK built via GitHub Actions |
-| **v0.10.1** | **Unreleased, untested, extremely dangerous experiment.** The experimental expert mode would let users attempt to remove **any detected package**, including critical Android system components, after a warning. It could disable essential functions or prevent the device from booting. **Not a successor or recommended upgrade to v0.10.** | **Not published. No source code or APK is offered for this experiment.** |
+The v0.10.1 experiment explored unrestricted removal of critical system components. **It is unreleased, untested, and not available for download.** The published v0.10 intentionally protects known critical and unreviewed system packages.
 
-## What v0.10 does
+## Features
 
-- Shows packages found on the actual connected Android device, rather than using a fixed list for one manufacturer.
-- Lets users search, filter by function/manufacturer, and sort by app name, size, or RAM information where available.
-- Offers a reviewed suggestion list and multiple-app selection.
-- Uses risk categories to distinguish lower-risk, conditional, and potentially harmful removals.
-- **Blocks known critical and unreviewed system packages from the ADB uninstall operation.** Risk classifications are not guarantees of safety on every phone.
-- Can uninstall ordinary user apps with Android's normal confirmation.
-- Can attempt to remove eligible factory apps for Android user 0 using ADB, without requiring root. This does **not** erase applications from the read-only system image.
+- Browse installed and factory system packages on Motorola, Samsung, Xiaomi, and other Android devices.
+- Search by name or package ID, filter by manufacturer, function and risk, and sort by name, size or RAM where supported.
+- Review package suggestions and select several apps with checkboxes without leaving the suggestions tab.
+- Uninstall regular applications through Android's own confirmation screen.
+- Remove supported optional factory-installed applications for Android user 0 with an authorized ADB connection, without root.
+- Restore factory packages removed through this app when supported by the device.
+- English interface by default, with an optional Brazilian Portuguese translation.
+- Guided first-time setup, including a Windows companion for Android 10.
 
-## Setup and compatibility
+## Android compatibility and setup
 
-**Android 10:** Installed apps can be browsed without ADB. Factory-app management requires a one-time USB debugging authorization using a Windows computer. The [Windows helper ZIP](desktop/Android-Optimizer-Windows.zip) contains scripts that download Google's official Android Platform Tools if necessary, detect the USB-connected phone, and help establish a local ADB connection. Users must approve USB debugging on their device; on some computers, OEM USB drivers are also required. No manual ADB commands are needed.
+**Android 10:** The local package list and normal app uninstallation work without ADB. Factory-app operations require one-time USB debugging authorization and the [Windows companion](desktop/DebloaToast-Windows.zip). The guided setup inside the app opens the relevant Android settings and checks the ADB connection.
 
-**Android 11+:** The app supports Android's wireless debugging pairing flow, including connection-port discovery where supported by the device.
+**Android 11+:** Wireless debugging can be paired using the Android pairing code. The app supports discovery of the connection port and reuses the saved pairing identity where available.
 
-A completely permission-free, zero-interaction setup is not possible for ordinary Android applications. The app does not automatically remove packages without the user's selection and confirmation.
+An ordinary Android app cannot enable debugging or approve its own first ADB authorization. You must approve the system request. Some PCs also require an OEM USB driver.
 
-## Security and limitations
+## Risk and safety
 
-- On Android 10, the Windows helper may enable legacy ADB over TCP port **5555**. This opens a debugging endpoint to the local network; use only on a trusted private network, and disable network debugging after use. A reboot may require repeating the setup.
-- Removing even supposedly optional packages can break device features, authentication, calling, banking apps, Wi-Fi, or updates. **Back up important data and review packages before removal.**
-- ADB-based uninstall for user 0 is not always reversible; restoring an application or device functionality is not guaranteed.
-- Compatibility and package classifications are not exhaustively tested on every device, and the application is not independently security-audited.
+**Green** indicates lower-risk candidates, **yellow** indicates feature-dependent removals, and **red** indicates unknown or higher-risk packages. Risk labels are guidance, not a universal safety guarantee. **The published v0.10 blocks known critical and unreviewed system packages from its ADB removal operation.**
 
-## Build
+Removing system packages can disrupt updates, cellular service, accounts, accessibility, banking apps or even device startup. Back up important data before making changes. ADB uninstall for Android user 0 does not erase the read-only system image; restoration is not guaranteed.
 
-Built with Kotlin, Android minSdk 29 (Android 10), Kadb 2.1.5, and Gradle 9.4.1. GitHub Actions compiles a **debug-signed** v0.10 APK and makes it available as a workflow artifact. This is a test-oriented distribution method, not a Play Store release.
+The Android 10 Windows companion may enable legacy ADB TCP mode on port 5555, which exposes a debugging endpoint on the local network. Use only on trusted private Wi-Fi and disable the debugging connection afterward.
 
-The application ID remains `br.com.a01optimizer.v08` for compatibility with certain earlier debug-signed installations.
+## Technical information
+
+- Android 10+ (API 29+), Kotlin, Kadb and Gradle.
+- Built as a debug-signed APK; it is not a Play Store release.
+- Current package identifier remains `br.com.a01optimizer.v08` for compatibility with earlier signed installations.
+- [Source code](../../) and [latest release](../../releases/latest).
+
+No automatic uninstallation is performed. This software has not been independently security-audited.

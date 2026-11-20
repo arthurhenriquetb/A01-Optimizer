@@ -26,7 +26,7 @@ class SetupActivity : Activity() {
     private var checking = false
     private var lastError = ""
     private val helperUrl =
-        "https://github.com/arthurhenriquetb/A01-Optimizer/raw/refs/heads/main/desktop/Android-Optimizer-Windows.zip"
+        "https://github.com/arthurhenriquetb/A01-Optimizer/releases/download/v0.10/DebloaToast-Windows.zip"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -132,8 +132,8 @@ class SetupActivity : Activity() {
                     "Conecte a um computador Windows."
                 ), 18f, true))
                 body.addView(view(tr(
-                    "Use a USB data cable. On the computer, run the Android Optimizer Windows helper. It installs the official Android tools and prepares the connection automatically.",
-                    "Use um cabo USB de dados. No computador, execute o assistente Windows do Android Optimizer. Ele instala as ferramentas oficiais e prepara a conexão automaticamente."
+                    "Use a USB data cable. On the computer, run the DebloaToast Windows helper. It installs the official Android tools and prepares the connection automatically.",
+                    "Use um cabo USB de dados. No computador, execute o assistente Windows do DebloaToast. Ele instala as ferramentas oficiais e prepara a conexão automaticamente."
                 )))
                 body.addView(action(tr("Download Windows helper", "Baixar assistente Windows"), true) {
                     try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(helperUrl))) }
@@ -184,7 +184,7 @@ class SetupActivity : Activity() {
     private fun shareHelper() {
         val share = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "Android Optimizer — Windows")
+            putExtra(Intent.EXTRA_SUBJECT, "DebloaToast — Windows")
             putExtra(Intent.EXTRA_TEXT, helperUrl)
         }
         startActivity(Intent.createChooser(share,
@@ -214,8 +214,8 @@ class SetupActivity : Activity() {
                     AlertDialog.Builder(this)
                         .setTitle(tr("Connected", "Conectado"))
                         .setMessage(tr(
-                            "Full access is ready. You can now manage factory apps in Android Optimizer.",
-                            "O acesso completo está pronto. Agora você pode gerenciar os aplicativos de fábrica no Android Optimizer."
+                            "Full access is ready. You can now manage factory apps in DebloaToast.",
+                            "O acesso completo está pronto. Agora você pode gerenciar os aplicativos de fábrica no DebloaToast."
                         ))
                         .setPositiveButton(tr("Finish", "Concluir")) { _, _ -> finish() }
                         .setCancelable(false)
