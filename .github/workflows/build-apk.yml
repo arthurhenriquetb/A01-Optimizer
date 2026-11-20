@@ -40,20 +40,23 @@ jobs:
           fi
       - name: Compile release APK
         run: gradle --no-daemon :app:assembleDebug
+      - name: Prepare public APK filename
+        run: cp app/build/outputs/apk/debug/app-debug.apk DebloaToast-v0.10.apk
       - name: Upload current build artifact
         uses: actions/upload-artifact@v4
         with:
           name: DebloaToast-v0.10-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: DebloaToast-v0.10.apk
           if-no-files-found: error
       - name: Publish single stable GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="app/build/outputs/apk/debug/app-debug.apk#DebloaToast-v0.10.apk"
+          APK="DebloaToast-v0.10.apk"
           COMPANION="desktop/DebloaToast-Windows.zip#DebloaToast-Windows.zip"
           if gh release view v0.10 >/dev/null 2>&1; then
             gh release upload v0.10 "$APK" "$COMPANION" --clobber
+            gh release delete-asset v0.10 app-debug.apk --yes >/dev/null 2>&1 || true
             gh release edit v0.10 --title "DebloaToast v0.10" --notes-file RELEASE_NOTES.md --latest
           else
             gh release create v0.10 "$APK" "$COMPANION" --title "DebloaToast v0.10" --notes-file RELEASE_NOTES.md --latest
