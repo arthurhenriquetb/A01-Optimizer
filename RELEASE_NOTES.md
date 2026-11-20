@@ -10,8 +10,10 @@ DebloaToast helps you inspect installed Android packages, understand their purpo
 - Searchable app list with manufacturer and function filters.
 - Suggestions grouped by risk, plus multiple-selection checkboxes.
 - Sort by name, package size or RAM where supported.
-- On-device guided setup, including a Windows companion for Android 10.
-- Wireless ADB pairing on Android 11+ when supported.
+- **No separate ADB install or command line required.** The app provides a guided connection flow instead of a technical tutorial.
+- **Android 10:** the app offers a button to download its Windows helper ZIP to the phone. Transfer the ZIP to a Windows PC, extract it, and double-click **Conectar-Windows.cmd**. The helper downloads Google's official ADB tools automatically, detects the USB-connected phone and configures ADB. Approve USB debugging on the phone; once the connection works, the USB cable can be disconnected while using the same trusted network.
+- **Android 11+:** use Android's built-in wireless debugging and pair with the app directly on the phone. No PC is normally required on supported devices.
+- **Basic mode:** browsing packages, viewing suggestions and uninstalling regular user-installed apps do not require an ADB connection.
 - English interface with optional Brazilian Portuguese.
 - Restore history for factory apps removed through the tool, where supported.
 

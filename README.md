@@ -23,11 +23,18 @@ The v0.10.1 experiment explored unrestricted removal of critical system componen
 
 ## Android compatibility and setup
 
-**Android 10:** The local package list and normal app uninstallation work without ADB. Factory-app operations require one-time USB debugging authorization and the [Windows companion](desktop/DebloaToast-Windows.zip). The guided setup inside the app opens the relevant Android settings and checks the ADB connection.
+### Guided setup — no command line
 
-**Android 11+:** Wireless debugging can be paired using the Android pairing code. The app supports discovery of the connection port and reuses the saved pairing identity where available.
+DebloaToast works in **basic mode without ADB**: browse packages, use filters and suggestions, and uninstall regular downloaded apps through Android's confirmation screen.
 
-An ordinary Android app cannot enable debugging or approve its own first ADB authorization. You must approve the system request. Some PCs also require an OEM USB driver.
+For factory-app management, DebloaToast guides you through the connection process, without asking you to install or type ADB commands yourself:
+
+- **Android 10 (Windows PC + USB data cable for first setup):** In the app, open **Connect → Set up full access**. It guides you to enable USB debugging and provides a **Download Windows helper** button, so the helper ZIP can be downloaded on your phone. Transfer the ZIP to your Windows PC (for example, over USB), extract it, and double-click **Conectar-Windows.cmd**. The helper automatically downloads **Google's official Android Platform Tools** if needed, detects the connected phone and sets up ADB. Accept the USB debugging authorization on the phone, then return to DebloaToast and tap **Check connection**. Once the network connection is active, the USB cable can be disconnected while you keep working on the same trusted network.
+- **Android 11+ (no computer for supported devices):** Use the phone's built-in **Wireless debugging** option. Pair DebloaToast using the code shown by Android; the app discovers the connection port and can reconnect using its saved pairing authorization when wireless debugging remains enabled.
+
+You **don't need to download or configure ADB separately**: the Windows helper obtains the official tools, and Android 11+ uses the system's own wireless debugging functionality. This aims to make setup usable without an external tutorial.
+
+**Limits:** An ordinary Android app cannot enable debugging or approve its own first ADB authorization. Some Windows PCs need an OEM USB driver, and the wireless connection may need to be set up again after a phone restart. The Android 10 helper opens legacy ADB on TCP port 5555; use it only on trusted Wi-Fi and turn off network debugging when finished.
 
 ## Risk and safety
 
