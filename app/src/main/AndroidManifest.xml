@@ -13,6 +13,7 @@
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity android:name=".SetupActivity" android:exported="false" />
+        <activity android:name=".HelpActivity" android:exported="false" />
         <activity android:name=".DashboardActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

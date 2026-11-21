@@ -64,12 +64,30 @@ class DashboardActivity : Activity() {
     private var reviewButton: Button? = null
     private var discovery: AdbDiscovery? = null
 
+    private fun readyToConnect(): Boolean = connected ||
+        (Build.VERSION.SDK_INT < Build.VERSION_CODES.R &&
+            prefs.getString("connection_port", "") == "5555") ||
+        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            prefs.getBoolean("paired", false) &&
+            (prefs.getString("connection_port", "")?.toIntOrNull()?.let { it in 1..65535 } == true))
+
+    private fun openConnectTab() {
+        tab = Tab.TOOLS
+        buildUi()
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent?.getBooleanExtra("open_connect", false) == true) openConnectTab()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lang = prefs.getString("language", "en") ?: "en"
         loadLocalApps()
+        if (intent?.getBooleanExtra("open_connect", false) == true) tab = Tab.TOOLS
         buildUi()
-        if (savedInstanceState == null) window.decorView.post {
+        if (savedInstanceState == null && tab != Tab.TOOLS) window.decorView.post {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                 if (prefs.getString("connection_port", "") == "5555") {
                     scan(5555, automatic = true)
@@ -157,8 +175,16 @@ class DashboardActivity : Activity() {
             setBackgroundColor(Color.rgb(250, 251, 253))
             setPadding(10.dp(), 6.dp(), 10.dp(), 8.dp())
         }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         val title = label("DebloaToast", 22f, true)
-        root.addView(title)
+        header.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(button("ⓘ " + tr("Help", "Ajuda")) {
+            startActivity(Intent(this, HelpActivity::class.java))
+        })
+        root.addView(header)
         statusLabel = label(deviceStatus(), 12f)
         root.addView(statusLabel)
 
@@ -185,6 +211,13 @@ class DashboardActivity : Activity() {
         )
         tabs.forEach { (destination, caption) ->
             val b = button(caption) { tab = destination; buildUi() }
+            b.textSize = 11f
+            b.isAllCaps = false
+            b.setPadding(1.dp(), 0, 1.dp(), 0)
+            b.minWidth = 0
+            b.minimumWidth = 0
+            b.maxLines = 1
+            b.ellipsize = android.text.TextUtils.TruncateAt.END
             if (destination == tab) {
                 b.backgroundTintList = ColorStateList.valueOf(accent)
                 b.setTextColor(Color.WHITE)
@@ -347,83 +380,46 @@ class DashboardActivity : Activity() {
     }
 
     private fun showTools(content: LinearLayout) {
-        val port = EditText(this).apply {
-            hint = tr("Connection port", "Porta de conexão")
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setSingleLine(true)
-            setText(prefs.getString("connection_port", ""))
-        }
-        content.addView(label(tr("Full access", "Acesso completo"), 18f, true))
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            content.addView(label(if (connected) tr(
-                "Connected. Factory-app management is available.",
-                "Conectado. O gerenciamento dos apps de fábrica está disponível."
-            ) else tr(
-                "Basic mode is ready. Enable factory-app management with a guided setup.",
-                "O modo básico já funciona. Ative o gerenciamento dos apps de fábrica com a configuração guiada."
-            ), 13f))
-            val setup = button(tr("Set up full access", "Configurar acesso completo")) {
-                openGuidedSetup()
-            }
-            setup.backgroundTintList = ColorStateList.valueOf(accent)
-            setup.setTextColor(Color.WHITE)
-            content.addView(setup)
-            content.addView(button(tr("Check connection", "Verificar conexão")) {
-                scan(5555)
-            })
-        } else {
-            content.addView(label(tr(
-                "Android 11+: enable Wireless debugging and pair this app once.",
-                "Android 11+: ative a depuração sem fio e pareie este app uma vez."
-            ), 12f))
-        }
+        content.addView(label(tr("ADB connection", "Conexão ADB"), 18f, true))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            content.addView(button(tr("Connect automatically", "Conectar automaticamente")) {
-                autoConnect()
-            })
-            content.addView(button(tr("Pair", "Parear")) {
+            val pair = button(tr("Pair", "Parear")) {
                 try {
                     PairingReceiver.prepare(this)
                     startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
                 } catch (e: Exception) {
-                    toast(e.message ?: tr("Could not open settings", "Não foi possível abrir ajustes"))
-                }
-            })
-        }
-        // Keep the connection port visible. Android's pairing port and connection port
-        // are different; the latter is shown on the main Wireless debugging screen.
-        content.addView(label(tr("Connection port (shown in Wireless debugging)",
-            "Porta de conexão (mostrada em Depuração sem fio)"), 16f, true))
-        content.addView(label(tr(
-            "Settings → Developer options → Wireless debugging. On the main screen, look for “IP address & Port” (example: 192.168.1.5:37123). Enter ONLY the number after the colon. Do not use the port under “Pair device with pairing code”.",
-            "Configurações → Opções do desenvolvedor → Depuração sem fio. Na tela principal, procure “Endereço IP e porta” (exemplo: 192.168.1.5:37123). Digite SOMENTE o número depois dos dois-pontos. Não use a porta de “Parear dispositivo com código de pareamento”."
-        ), 12f))
-        content.addView(port)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            content.addView(button(tr("Open Developer options to find the port",
-                "Abrir Opções do desenvolvedor para consultar a porta")) {
-                try {
-                    startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
-                } catch (e: Exception) {
                     toast(e.message ?: tr("Settings unavailable", "Configurações indisponíveis"))
                 }
+            }
+            content.addView(pair)
+        } else {
+            content.addView(button(tr("Set up with Windows", "Configurar com Windows")) {
+                openGuidedSetup()
             })
         }
-        content.addView(button(tr("Connect using the port above", "Conectar usando a porta acima")) {
-            val p = port.text.toString().trim().toIntOrNull()
-            if (p == null || p !in 1..65535) {
-                toast(tr("Enter the connection port (1–65535)",
-                    "Informe a porta de conexão (1 a 65535)")); return@button
+        val connect = button(tr("CONNECT", "CONECTAR")) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                scan(5555)
+            } else {
+                val saved = prefs.getString("connection_port", "")?.toIntOrNull()
+                if (saved != null && saved in 1..65535) scan(saved)
+                else autoConnect()
             }
-            prefs.edit().putString("connection_port", p.toString()).apply()
-            scan(p)
+        }
+        connect.textSize = 19f
+        connect.minHeight = 64.dp()
+        connect.backgroundTintList = ColorStateList.valueOf(Color.rgb(184, 45, 43))
+        connect.setTextColor(Color.WHITE)
+        connect.isEnabled = readyToConnect() && !busy
+        content.addView(connect)
+        content.addView(button(tr("Find connection automatically", "Buscar conexão automaticamente")) {
+            autoConnect()
+        }.apply {
+            visibility = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) View.VISIBLE else View.GONE
         })
-        content.addView(label(tr("Recovery", "Restauração"), 18f, true))
+        content.addView(label(tr("Recovery", "Restauração"), 17f, true))
         content.addView(button(tr("Restore removed system apps", "Restaurar apps de fábrica")) {
             confirmRestore()
         })
-        content.addView(label(tr("Only changes made by this version can be restored here.",
-            "Somente alterações desta versão podem ser restauradas aqui."), 12f))
     }
 
     private fun showSettings(content: LinearLayout) {
@@ -443,6 +439,9 @@ class DashboardActivity : Activity() {
         content.addView(label(tr("Required to sort by full app size.",
             "Necessário para ordenar pelo tamanho completo."), 12f))
         content.addView(label("DebloaToast Expert v0.11", 15f, true))
+        content.addView(button(tr("Help and PDF guide", "Ajuda e tutorial em PDF")) {
+            startActivity(Intent(this, HelpActivity::class.java))
+        })
     }
 
     private fun setLanguage(code: String) {

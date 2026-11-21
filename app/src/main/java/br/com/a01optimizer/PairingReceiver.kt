@@ -30,10 +30,9 @@ class PairingReceiver : BroadcastReceiver() {
                     }
                     context.getSharedPreferences("a01", Context.MODE_PRIVATE)
                         .edit().putString("connection_port", port.toString()).apply()
-                    val model = AdbCore.command(context, port, "getprop ro.product.model").trim()
-                    result(context, translated(context, "ADB connected", "ADB conectado"),
-                        translated(context, "Connected to $model. Open DebloaToast.",
-                            "Conectado a $model. Abra o DebloaToast."))
+                    result(context, translated(context, "Ready to connect", "Pronto para conectar"),
+                        translated(context, "Tap here, then press CONNECT in DebloaToast.",
+                            "Toque aqui e depois em CONECTAR no DebloaToast."))
                     return@Thread
                 }
                 val values = response.split(Regex("\\s+"))
@@ -138,7 +137,9 @@ class PairingReceiver : BroadcastReceiver() {
         private fun result(ctx: Context, title: String, message: String) {
             manager(ctx).cancel(PAIR_NOTIFICATION)
             val open = PendingIntent.getActivity(ctx, 0,
-                Intent(ctx, DashboardActivity::class.java),
+                Intent(ctx, DashboardActivity::class.java)
+                    .putExtra("open_connect", true)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             manager(ctx).notify(RESULT_NOTIFICATION, Notification.Builder(ctx, CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_sys_upload_done)

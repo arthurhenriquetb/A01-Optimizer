@@ -64,3 +64,9 @@ An ordinary third-party app cannot bypass the initial Android debugging approval
 - The application ID `br.com.a01optimizer.v08` remains unchanged to preserve compatibility with earlier installations using the same signing key.
 
 This is an **experimental Expert tool, not a Play Store application**. Testing on a limited number of phones does not establish safety or compatibility on all devices.
+
+## In-app help and PDF guide
+
+The main **Connect** screen is intentionally minimal: **Pair** and a large red **CONNECT** button. CONNECT becomes available when a connection port has been provided by the notification flow (or the Android 10 Windows setup has been configured). A successful pairing prompts for the connection port in a second notification. The completion notification opens the **Connect** tab directly; the user then presses **CONNECT**. Automatic discovery remains an optional fallback. The connection port entry and verbose setup instructions have been removed from the main screen.
+
+A **Help** button at the top of the app opens a dedicated bilingual, step-by-step tutorial, from enabling Developer options through wireless pairing or Windows setup, troubleshooting and restoration. The tutorial can be **shared as text** or **saved as PDF** using Android's Print / Save as PDF option. Android's print support is required for PDF export. Navigation labels have been reduced to fit narrow screens in both languages.
