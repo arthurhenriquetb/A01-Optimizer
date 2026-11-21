@@ -52,6 +52,8 @@ A **single explicit warning** appears before executing the uninstall operation, 
 
 **Android 11+:** Use Android's built-in wireless debugging pairing code. DebloaToast can discover the current connection port and reuse saved pairing authorization. No computer is generally required on devices supporting Android's wireless debugging.
 
+**More intuitive connection flow (v0.11, updated build):** After replying to the pairing notification with Android's six-digit pairing code, DebloaToast automatically shows a **second notification** asking for the **connection port** displayed under **Developer options → Wireless debugging → IP address & Port** (not the temporary pairing port). Reply to the second notification with the number after the colon, for example `37123` from `192.168.1.5:37123`. DebloaToast then tests the connection. Alternatively, the connection-port field is **always visible** in the app's **Connect** tab, with an explanation and a shortcut to Developer options. Automatic port discovery is still available and may avoid typing this number altogether. Android controls whether inline notification replies are expanded; the app cannot guarantee an always-open keyboard in the notification.
+
 An ordinary third-party app cannot bypass the initial Android debugging approval. Some Windows computers may require the manufacturer's USB driver. On Android 10, a restart can require running the helper again. Avoid using network ADB on public Wi-Fi; the legacy TCP port 5555 is exposed to the local network and should be disabled after use.
 
 ## Files and build

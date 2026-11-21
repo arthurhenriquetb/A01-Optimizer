@@ -390,25 +390,34 @@ class DashboardActivity : Activity() {
                 }
             })
         }
-        val manual = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            visibility = View.GONE
+        // Keep the connection port visible. Android's pairing port and connection port
+        // are different; the latter is shown on the main Wireless debugging screen.
+        content.addView(label(tr("Connection port (shown in Wireless debugging)",
+            "Porta de conexão (mostrada em Depuração sem fio)"), 16f, true))
+        content.addView(label(tr(
+            "Settings → Developer options → Wireless debugging. On the main screen, look for “IP address & Port” (example: 192.168.1.5:37123). Enter ONLY the number after the colon. Do not use the port under “Pair device with pairing code”.",
+            "Configurações → Opções do desenvolvedor → Depuração sem fio. Na tela principal, procure “Endereço IP e porta” (exemplo: 192.168.1.5:37123). Digite SOMENTE o número depois dos dois-pontos. Não use a porta de “Parear dispositivo com código de pareamento”."
+        ), 12f))
+        content.addView(port)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            content.addView(button(tr("Open Developer options to find the port",
+                "Abrir Opções do desenvolvedor para consultar a porta")) {
+                try {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+                } catch (e: Exception) {
+                    toast(e.message ?: tr("Settings unavailable", "Configurações indisponíveis"))
+                }
+            })
         }
-        content.addView(button(tr("Manual connection", "Conexão manual")) {
-            manual.visibility = if (manual.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        })
-        manual.addView(port)
-        manual.addView(button(tr("Connect with port", "Conectar com porta")) {
+        content.addView(button(tr("Connect using the port above", "Conectar usando a porta acima")) {
             val p = port.text.toString().trim().toIntOrNull()
             if (p == null || p !in 1..65535) {
-                toast(tr("Enter the connection port", "Informe a porta de conexão")); return@button
+                toast(tr("Enter the connection port (1–65535)",
+                    "Informe a porta de conexão (1 a 65535)")); return@button
             }
             prefs.edit().putString("connection_port", p.toString()).apply()
             scan(p)
         })
-        manual.addView(label(tr("Use the connection port, not the pairing port.",
-            "Use a porta de conexão, não a de pareamento."), 12f))
-        content.addView(manual)
         content.addView(label(tr("Recovery", "Restauração"), 18f, true))
         content.addView(button(tr("Restore removed system apps", "Restaurar apps de fábrica")) {
             confirmRestore()
